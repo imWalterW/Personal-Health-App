@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Activity, Droplets, Flame, Footprints, Timer, 
@@ -367,35 +366,37 @@ export default function App() {
   );
 
   const MetricInput = ({ 
-    value, 
-    onChange, 
+    initialValue, 
     unit, 
     onSave 
   }: { 
-    value: number; 
-    onChange: (val: number) => void; 
+    initialValue: number; 
     unit: string; 
-    onSave: () => void 
-  }) => (
-    <div className="p-6 flex flex-col gap-6">
-      <div className="flex items-center justify-center gap-2">
-        <input
-          type="number"
-          value={value || ''}
-          onChange={(e) => onChange(Number(e.target.value))}
-          className="text-4xl font-bold text-center w-32 bg-transparent border-b-2 border-primary focus:outline-none dark:text-white"
-          autoFocus
-        />
-        <span className="text-xl text-gray-500">{unit}</span>
+    onSave: (val: number) => void 
+  }) => {
+    const [val, setVal] = useState<string>(initialValue ? initialValue.toString() : '');
+    
+    return (
+      <div className="p-6 flex flex-col gap-6">
+        <div className="flex items-center justify-center gap-2">
+          <input
+            type="number"
+            value={val}
+            onChange={(e) => setVal(e.target.value)}
+            className="text-4xl font-bold text-center w-32 bg-transparent border-b-2 border-primary focus:outline-none dark:text-white"
+            autoFocus
+          />
+          <span className="text-xl text-gray-500">{unit}</span>
+        </div>
+        <button 
+          onClick={() => onSave(Number(val) || 0)}
+          className="w-full py-3 bg-primary text-white rounded-xl font-bold text-lg shadow-lg shadow-primary/30 active:scale-95 transition-all"
+        >
+          Update
+        </button>
       </div>
-      <button 
-        onClick={onSave}
-        className="w-full py-3 bg-primary text-white rounded-xl font-bold text-lg shadow-lg shadow-primary/30 active:scale-95 transition-all"
-      >
-        Update
-      </button>
-    </div>
-  );
+    );
+  };
 
   // --- Render Sections ---
 
@@ -861,7 +862,7 @@ export default function App() {
             <label className="text-sm text-gray-500 block mb-1">Height (cm)</label>
             <input 
               type="number" 
-              value={state.profile.height} 
+              value={state.profile.height || ''} 
               onChange={(e) => updateProfile({ height: Number(e.target.value) })}
               className="w-full p-2 rounded-lg bg-gray-50 dark:bg-slate-700 dark:text-white border-none focus:ring-2 focus:ring-primary"
             />
@@ -870,7 +871,7 @@ export default function App() {
             <label className="text-sm text-gray-500 block mb-1">Weight Goal (kg)</label>
             <input 
               type="number" 
-              value={state.profile.weightGoal} 
+              value={state.profile.weightGoal || ''} 
               onChange={(e) => updateProfile({ weightGoal: Number(e.target.value) })}
               className="w-full p-2 rounded-lg bg-gray-50 dark:bg-slate-700 dark:text-white border-none focus:ring-2 focus:ring-primary"
             />
@@ -883,7 +884,7 @@ export default function App() {
               <label className="text-[10px] text-gray-500 block mb-1">Step Goal</label>
               <input 
                 type="number" 
-                value={state.profile.stepGoal || 10000} 
+                value={state.profile.stepGoal || ''} 
                 onChange={(e) => updateProfile({ stepGoal: Number(e.target.value) })}
                 className="w-full p-2 rounded-lg bg-gray-50 dark:bg-slate-700 dark:text-white border-none focus:ring-2 focus:ring-primary text-sm"
               />
@@ -892,7 +893,7 @@ export default function App() {
               <label className="text-[10px] text-gray-500 block mb-1">Walk Goal (m)</label>
               <input 
                 type="number" 
-                value={state.profile.walkTimeGoal || 60} 
+                value={state.profile.walkTimeGoal || ''} 
                 onChange={(e) => updateProfile({ walkTimeGoal: Number(e.target.value) })}
                 className="w-full p-2 rounded-lg bg-gray-50 dark:bg-slate-700 dark:text-white border-none focus:ring-2 focus:ring-primary text-sm"
               />
@@ -901,7 +902,7 @@ export default function App() {
               <label className="text-[10px] text-gray-500 block mb-1">Workout (m)</label>
               <input 
                 type="number" 
-                value={state.profile.workoutTimeGoal || 30} 
+                value={state.profile.workoutTimeGoal || ''} 
                 onChange={(e) => updateProfile({ workoutTimeGoal: Number(e.target.value) })}
                 className="w-full p-2 rounded-lg bg-gray-50 dark:bg-slate-700 dark:text-white border-none focus:ring-2 focus:ring-primary text-sm"
               />
@@ -913,7 +914,7 @@ export default function App() {
             <label className="text-sm text-gray-500 block mb-1">Calories Goal</label>
             <input 
               type="number" 
-              value={state.profile.calorieGoal} 
+              value={state.profile.calorieGoal || ''} 
               onChange={(e) => updateProfile({ calorieGoal: Number(e.target.value) })}
               className="w-full p-2 rounded-lg bg-gray-50 dark:bg-slate-700 dark:text-white border-none focus:ring-2 focus:ring-primary"
             />
@@ -922,7 +923,7 @@ export default function App() {
             <label className="text-sm text-gray-500 block mb-1">Sleep Goal (hrs)</label>
             <input 
               type="number" 
-              value={state.profile.sleepGoal} 
+              value={state.profile.sleepGoal || ''} 
               onChange={(e) => updateProfile({ sleepGoal: Number(e.target.value) })}
               className="w-full p-2 rounded-lg bg-gray-50 dark:bg-slate-700 dark:text-white border-none focus:ring-2 focus:ring-primary"
             />
@@ -934,7 +935,7 @@ export default function App() {
            <label className="text-sm text-gray-500 block mb-1">Water Goal (Bottles)</label>
             <input 
               type="number" 
-              value={state.profile.waterGoal || 8} 
+              value={state.profile.waterGoal || ''} 
               onChange={(e) => updateProfile({ waterGoal: Number(e.target.value) })}
               className="w-full p-2 rounded-lg bg-gray-50 dark:bg-slate-700 dark:text-white border-none focus:ring-2 focus:ring-primary"
             />
@@ -1106,7 +1107,7 @@ export default function App() {
                       activeModal === ModalType.WATER ? "Water Intake" : "Sleep Duration"
                    }>
                       <MetricInput 
-                         value={
+                         initialValue={
                             activeModal === ModalType.STEPS ? currentLog.steps :
                             activeModal === ModalType.WEIGHT ? currentLog.weight :
                             activeModal === ModalType.WALK ? currentLog.walkTime :
@@ -1119,15 +1120,15 @@ export default function App() {
                             activeModal === ModalType.WATER ? "bottles" :
                             activeModal === ModalType.SLEEP ? "hours" : "min"
                          }
-                         onChange={(val) => {
+                         onSave={(val) => {
                             if (activeModal === ModalType.STEPS) updateLog({ steps: val });
                             if (activeModal === ModalType.WEIGHT) updateLog({ weight: val });
                             if (activeModal === ModalType.WALK) updateLog({ walkTime: val });
                             if (activeModal === ModalType.WORKOUT) updateLog({ workoutTime: val });
                             if (activeModal === ModalType.WATER) updateLog({ waterBottles: val });
                             if (activeModal === ModalType.SLEEP) updateLog({ sleep: val });
+                            closeModal();
                          }}
-                         onSave={closeModal}
                       />
                    </Modal>
                 )}
