@@ -17,6 +17,7 @@ export interface DailyLog {
   walkTime: number; // minutes
   workoutTime: number; // minutes
   waterBottles: number; // count (1 = 750ml)
+  sleep: number; // hours
   meals: Meal[];
 }
 
@@ -26,9 +27,12 @@ export interface UserProfile {
   weightGoal: number; // kg
   stepGoal: number;
   calorieGoal: number;
+  sleepGoal: number; // hours
   avatarUrl: string | null;
   darkMode: boolean;
   autoBackup?: boolean;
+  notificationsEnabled?: boolean;
+  googleClientId?: string;
 }
 
 export interface AppState {
@@ -45,6 +49,7 @@ export enum ModalType {
   WORKOUT,
   MEAL,
   WATER,
+  SLEEP,
   SETTINGS,
   BACKUP
 }

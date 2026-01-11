@@ -5,21 +5,23 @@ const FILENAME = 'vitalsync_data.json';
 
 let tokenClient: any;
 
-export const initGoogleAuth = (onSuccess: (token: string) => void) => {
+export const initGoogleAuth = (clientId: string | undefined, onSuccess: (token: string) => void) => {
   if (typeof window === 'undefined' || !(window as any).google) {
     // Retry if google script hasn't loaded yet
-    setTimeout(() => initGoogleAuth(onSuccess), 500);
+    setTimeout(() => initGoogleAuth(clientId, onSuccess), 500);
     return;
   }
   
-  if (!CLIENT_ID) {
+  const finalClientId = clientId || CLIENT_ID;
+  
+  if (!finalClientId) {
     console.warn("Google Client ID is not defined. Drive features disabled.");
     return;
   }
   
   try {
     tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
-      client_id: CLIENT_ID,
+      client_id: finalClientId,
       scope: SCOPES,
       callback: (tokenResponse: any) => {
         if (tokenResponse.access_token) {

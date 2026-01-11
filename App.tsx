@@ -4,14 +4,17 @@ import {
   Activity, Droplets, Flame, Footprints, Timer, 
   Settings, TrendingUp, Moon, Sun, User as UserIcon, 
   Plus, CalendarCheck, Share2, UploadCloud, DownloadCloud,
-  ChevronRight, X, RefreshCw, Lightbulb, Cloud, CheckCircle, AlertCircle
+  ChevronRight, ChevronLeft, X, RefreshCw, Lightbulb, Cloud, CheckCircle, AlertCircle, Bell
 } from 'lucide-react';
 import { RadialProgress } from './components/RadialChart';
 import { MealLogger } from './components/MealLogger';
 import { generateInsight } from './services/gemini';
 import { initGoogleAuth, signInToGoogle, uploadDataToDrive, downloadDataFromDrive } from './services/googleDrive';
 import { DailyLog, UserProfile, ModalType, AppState, Meal } from './types';
-import { LineChart, Line, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { 
+  LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, 
+  Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Legend 
+} from 'recharts';
 
 // --- Helper Functions ---
 
@@ -23,26 +26,21 @@ const calculateStreak = (logs: { [date: string]: DailyLog }): number => {
   
   let streak = 0;
   let currentDate = new Date();
-  // Normalize current date to midnight
   currentDate.setHours(0,0,0,0);
   
-  // Check if today is logged
   const todayStr = getTodayDate();
   if (logs[todayStr]) {
     streak = 1;
   } else {
-    // If not logged today, check if logged yesterday to maintain streak
     const yesterday = new Date(currentDate);
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = yesterday.toISOString().split('T')[0];
-    if (!logs[yesterdayStr]) return 0; // Streak broken
+    if (!logs[yesterdayStr]) return 0;
   }
 
-  // Iterate backwards
   for (let i = (logs[todayStr] ? 1 : 0); i < dates.length; i++) {
-    const prevDate = new Date(dates[i-1]); // The date we just counted
+    const prevDate = new Date(dates[i-1]);
     const thisDate = new Date(dates[i]);
-    
     const diffTime = Math.abs(prevDate.getTime() - thisDate.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
 
@@ -69,9 +67,11 @@ export default function App() {
         weightGoal: 70,
         stepGoal: 10000,
         calorieGoal: 2000,
+        sleepGoal: 8,
         avatarUrl: null,
         darkMode: false,
-        autoBackup: false
+        autoBackup: false,
+        notificationsEnabled: false
       },
       logs: {},
       lastBackup: null,
@@ -85,6 +85,9 @@ export default function App() {
   const [autoSuggestMeal, setAutoSuggestMeal] = useState(false);
   const [loadingInsight, setLoadingInsight] = useState(false);
   
+  // Date State for Past Logging
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayDate());
+
   // Google Drive State
   const [googleToken, setGoogleToken] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
@@ -94,13 +97,16 @@ export default function App() {
 
   // Derived State
   const today = getTodayDate();
-  const currentLog: DailyLog = state.logs[today] || {
-    date: today,
+  
+  // Use selectedDate for current log display instead of fixed 'today'
+  const currentLog: DailyLog = state.logs[selectedDate] || {
+    date: selectedDate,
     weight: 0,
     steps: 0,
     walkTime: 0,
     workoutTime: 0,
     waterBottles: 0,
+    sleep: 0,
     meals: []
   };
 
@@ -122,7 +128,6 @@ export default function App() {
   }, [state]);
 
   useEffect(() => {
-    // Generate insight on mount or data change (throttled in real app, here simple)
     const logsArray = Object.values(state.logs).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     if (logsArray.length > 0 && !insight) {
       handleNewTip();
@@ -131,7 +136,7 @@ export default function App() {
 
   // Google Auth Init
   useEffect(() => {
-    initGoogleAuth((token) => {
+    initGoogleAuth(state.profile.googleClientId, (token) => {
       setGoogleToken(token);
       setSyncStatus('success');
       setSyncMessage('Connected to Drive');
@@ -139,12 +144,47 @@ export default function App() {
     });
   }, []);
 
+  // Notifications Logic
+  useEffect(() => {
+    if (!state.profile.notificationsEnabled) return;
+
+    if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+      Notification.requestPermission();
+    }
+
+    const interval = setInterval(() => {
+      const now = new Date();
+      const currentHour = now.getHours();
+      
+      // Simple logic: Remind to drink water every 2 hours between 8 AM and 10 PM
+      if (currentHour >= 8 && currentHour <= 22 && currentHour % 2 === 0 && now.getMinutes() === 0) {
+        if (Notification.permission === 'granted') {
+          new Notification("Hydration Check 💧", { 
+            body: "Time to drink some water! Stay hydrated.",
+            icon: "/favicon.ico" 
+          });
+        }
+      }
+
+      // Simple logic: Remind to log dinner at 8 PM
+      if (currentHour === 20 && now.getMinutes() === 0) {
+         if (Notification.permission === 'granted') {
+          new Notification("Daily Log Reminder 📝", { 
+            body: "Have you logged your meals and activities for today?",
+          });
+        }
+      }
+    }, 60000); // Check every minute
+
+    return () => clearInterval(interval);
+  }, [state.profile.notificationsEnabled]);
+
   // Auto Backup Effect
   useEffect(() => {
     if (state.profile.autoBackup && googleToken && syncStatus === 'idle') {
       const timer = setTimeout(() => {
         handleDriveBackup(true);
-      }, 5000); // Debounce backup 5s after changes
+      }, 5000); // Debounce backup 5s
       return () => clearTimeout(timer);
     }
   }, [state, googleToken]);
@@ -156,7 +196,7 @@ export default function App() {
       ...prev,
       logs: {
         ...prev.logs,
-        [today]: { ...currentLog, ...updates }
+        [selectedDate]: { ...currentLog, ...updates }
       }
     }));
     triggerAnimation();
@@ -167,6 +207,27 @@ export default function App() {
       ...prev,
       profile: { ...prev.profile, ...updates }
     }));
+  };
+
+  const changeDate = (offset: number) => {
+    const date = new Date(selectedDate);
+    date.setDate(date.getDate() + offset);
+    setSelectedDate(date.toISOString().split('T')[0]);
+  };
+
+  const handleNotificationToggle = () => {
+    if (!state.profile.notificationsEnabled) {
+      Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+          updateProfile({ notificationsEnabled: true });
+          new Notification("Notifications Enabled", { body: "We'll remind you to stay healthy!" });
+        } else {
+          alert("We need permission to send you reminders. Please enable notifications in your browser settings.");
+        }
+      });
+    } else {
+      updateProfile({ notificationsEnabled: false });
+    }
   };
 
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -196,7 +257,6 @@ export default function App() {
     setState(prev => ({ ...prev, lastBackup: Date.now() }));
   };
 
-  // Google Drive Handlers
   const handleDriveBackup = async (silent = false) => {
     if (!googleToken) return;
     if (!silent) setSyncStatus('syncing');
@@ -316,14 +376,30 @@ export default function App() {
   const renderDashboard = () => (
     <div className="space-y-6 pb-24">
       {/* Header & Insight */}
-      <div className="flex justify-between items-start">
+      <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold dark:text-white">Hello, {state.profile.name}</h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm">{new Date().toDateString()}</p>
+          <div className="flex items-center gap-2 mt-1">
+             <button onClick={() => changeDate(-1)} className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors">
+               <ChevronLeft className="w-4 h-4 text-gray-500" />
+             </button>
+             <input 
+                type="date" 
+                value={selectedDate}
+                max={today}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="bg-transparent text-sm text-gray-500 dark:text-gray-400 font-medium focus:outline-none cursor-pointer"
+             />
+             <button onClick={() => changeDate(1)} disabled={selectedDate === today} className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-slate-800 disabled:opacity-30 transition-colors">
+               <ChevronRight className="w-4 h-4 text-gray-500" />
+             </button>
+          </div>
         </div>
-        <div className="flex items-center gap-1 px-3 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-full text-sm font-semibold">
-          <Flame className="w-4 h-4 fill-current" />
-          <span>{streak} Day Streak</span>
+        <div className="flex flex-col items-end gap-2">
+           <div className="flex items-center gap-1 px-3 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-full text-sm font-semibold">
+              <Flame className="w-4 h-4 fill-current" />
+              <span>{streak} Day Streak</span>
+            </div>
         </div>
       </div>
 
@@ -415,8 +491,6 @@ export default function App() {
         {/* Water */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 relative overflow-hidden cursor-pointer"
              onClick={() => updateLog({ waterBottles: currentLog.waterBottles + 1 })}>
-          
-          {/* Animated Water Background */}
           <div 
             className="absolute bottom-0 left-0 right-0 bg-blue-500/10 transition-all duration-700 ease-in-out"
             style={{ height: `${Math.min(100, (currentLog.waterBottles / 8) * 100)}%` }}
@@ -432,8 +506,37 @@ export default function App() {
             </div>
             <p className="text-2xl font-bold dark:text-white">{currentLog.waterBottles}</p>
             <p className="text-xs text-gray-500">Bottles ({(currentLog.waterBottles * 0.75).toFixed(2)}L)</p>
-             <p className="text-[10px] text-blue-500 mt-2 font-medium">Tap to add</p>
           </div>
+        </div>
+
+        {/* Walking Duration */}
+        <div 
+          onClick={() => setActiveModal(ModalType.WALK)}
+          className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 hover:border-teal-500/50 transition-colors cursor-pointer active:scale-95"
+        >
+          <div className="flex justify-between items-start mb-2">
+            <div className="p-2 bg-teal-100 dark:bg-teal-900/30 rounded-lg text-teal-600">
+              <Timer className="w-5 h-5" />
+            </div>
+            <span className="text-xs text-gray-400">Time</span>
+          </div>
+          <p className="text-2xl font-bold dark:text-white">{currentLog.walkTime} <span className="text-sm font-normal text-gray-400">min</span></p>
+          <p className="text-xs text-gray-500">Walking</p>
+        </div>
+
+        {/* Sleep Tracker */}
+        <div 
+          onClick={() => setActiveModal(ModalType.SLEEP)}
+          className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 hover:border-indigo-500/50 transition-colors cursor-pointer active:scale-95"
+        >
+          <div className="flex justify-between items-start mb-2">
+            <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg text-indigo-600">
+              <Moon className="w-5 h-5" />
+            </div>
+            <span className="text-xs text-gray-400">Goal: {state.profile.sleepGoal}h</span>
+          </div>
+          <p className="text-2xl font-bold dark:text-white">{currentLog.sleep || 0} <span className="text-sm font-normal text-gray-400">hrs</span></p>
+          <p className="text-xs text-gray-500">Sleep</p>
         </div>
 
         {/* Workout */}
@@ -449,26 +552,12 @@ export default function App() {
           <p className="text-2xl font-bold dark:text-white">{currentLog.workoutTime} <span className="text-sm font-normal text-gray-400">min</span></p>
           <p className="text-xs text-gray-500">Workout</p>
         </div>
-
-        {/* Walk Time */}
-        <div 
-           onClick={() => setActiveModal(ModalType.WALK)}
-           className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 hover:border-green-500/50 transition-colors cursor-pointer active:scale-95"
-        >
-          <div className="flex justify-between items-start mb-2">
-            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg text-green-600">
-              <Timer className="w-5 h-5" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold dark:text-white">{currentLog.walkTime} <span className="text-sm font-normal text-gray-400">min</span></p>
-          <p className="text-xs text-gray-500">Walking</p>
-        </div>
       </div>
       
       {/* Weight Card */}
       <div 
         onClick={() => setActiveModal(ModalType.WEIGHT)}
-        className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 flex items-center justify-between cursor-pointer"
+        className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 flex items-center justify-between cursor-pointer active:scale-95 transition-transform"
       >
         <div>
           <p className="text-sm text-gray-500">Current Weight</p>
@@ -485,59 +574,126 @@ export default function App() {
   const renderStats = () => {
     const data = Object.values(state.logs)
       .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .slice(-7); // Last 7 days
+      .slice(-14); // Extended to last 14 days for better stats
+    
+    // Filter for weight chart (avoid showing 0s)
+    const weightData = data.filter(d => d.weight > 0);
+
+    const avgSteps = Math.round(data.reduce((acc, curr) => acc + curr.steps, 0) / (data.length || 1));
+    const avgSleep = (data.reduce((acc, curr) => acc + (curr.sleep || 0), 0) / (data.length || 1)).toFixed(1);
 
     return (
       <div className="space-y-6 pb-24">
-        <h1 className="text-2xl font-bold dark:text-white">Weekly Progress</h1>
+        <h1 className="text-2xl font-bold dark:text-white">Highlights</h1>
         
-        {/* Steps Chart */}
+        {/* Stats Summary Cards */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700">
+             <p className="text-xs text-gray-500 uppercase font-semibold">Avg Steps</p>
+             <p className="text-xl font-bold dark:text-white mt-1">{avgSteps}</p>
+          </div>
+          <div className="p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700">
+             <p className="text-xs text-gray-500 uppercase font-semibold">Avg Sleep</p>
+             <p className="text-xl font-bold dark:text-white mt-1">{avgSleep} hrs</p>
+          </div>
+        </div>
+
+        {/* Steps Chart (Area) */}
         <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700">
-          <h3 className="font-semibold mb-4 dark:text-gray-300">Steps History</h3>
-          <div className="h-48">
+          <h3 className="font-semibold mb-4 dark:text-gray-300 flex items-center gap-2">
+            <Footprints className="w-4 h-4 text-orange-500" /> Steps History
+          </h3>
+          <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data}>
-                <XAxis dataKey="date" tickFormatter={(val) => val.slice(5)} stroke="#94a3b8" fontSize={12} />
+              <AreaChart data={data}>
+                <defs>
+                  <linearGradient id="colorSteps" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f97316" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
+                <XAxis dataKey="date" tickFormatter={(val) => val.slice(5)} stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
                 <YAxis hide />
                 <RechartsTooltip 
-                  contentStyle={{ backgroundColor: state.profile.darkMode ? '#1e293b' : '#fff', borderRadius: '8px' }} 
-                  itemStyle={{ color: '#f97316' }}
+                  contentStyle={{ backgroundColor: state.profile.darkMode ? '#1e293b' : '#fff', borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} 
                 />
-                <Bar dataKey="steps" fill="#f97316" radius={[4, 4, 0, 0]} />
+                <Area type="monotone" dataKey="steps" stroke="#f97316" fillOpacity={1} fill="url(#colorSteps)" strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+        
+        {/* Weight Chart (Area) */}
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700">
+          <h3 className="font-semibold mb-4 dark:text-gray-300 flex items-center gap-2">
+            <Activity className="w-4 h-4 text-blue-500" /> Weight Trend
+          </h3>
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={weightData.length > 0 ? weightData : [{date: today, weight: 0}]}>
+                <defs>
+                  <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
+                <XAxis dataKey="date" tickFormatter={(val) => val.slice(5)} stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis domain={['auto', 'auto']} hide />
+                <RechartsTooltip 
+                  contentStyle={{ backgroundColor: state.profile.darkMode ? '#1e293b' : '#fff', borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} 
+                />
+                <Area type="monotone" dataKey="weight" stroke="#3b82f6" fillOpacity={1} fill="url(#colorWeight)" strokeWidth={2} connectNulls />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Calories Chart (Area) */}
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700">
+          <h3 className="font-semibold mb-4 dark:text-gray-300 flex items-center gap-2">
+            <Flame className="w-4 h-4 text-green-500" /> Calories
+          </h3>
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={data.map(d => ({...d, calories: d.meals.reduce((a,m) => a+m.calories, 0)}))}>
+                <defs>
+                  <linearGradient id="colorCals" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
+                 <XAxis dataKey="date" tickFormatter={(val) => val.slice(5)} stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false}/>
+                 <YAxis hide />
+                 <RechartsTooltip contentStyle={{ backgroundColor: state.profile.darkMode ? '#1e293b' : '#fff', borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}/>
+                 <Area type="monotone" dataKey="calories" stroke="#10b981" fillOpacity={1} fill="url(#colorCals)" strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+        
+        {/* Sleep Chart (Bar) */}
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700">
+          <h3 className="font-semibold mb-4 dark:text-gray-300 flex items-center gap-2">
+            <Moon className="w-4 h-4 text-indigo-500" /> Sleep Duration
+          </h3>
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
+                <XAxis dataKey="date" tickFormatter={(val) => val.slice(5)} stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                <RechartsTooltip 
+                  cursor={{fill: 'transparent'}}
+                  contentStyle={{ backgroundColor: state.profile.darkMode ? '#1e293b' : '#fff', borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} 
+                />
+                <Bar dataKey="sleep" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={20} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Calories Chart */}
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700">
-          <h3 className="font-semibold mb-4 dark:text-gray-300">Calorie Intake</h3>
-          <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data.map(d => ({...d, calories: d.meals.reduce((a,m) => a+m.calories, 0)}))}>
-                 <XAxis dataKey="date" tickFormatter={(val) => val.slice(5)} stroke="#94a3b8" fontSize={12} />
-                 <YAxis stroke="#94a3b8" fontSize={12} />
-                 <RechartsTooltip contentStyle={{ backgroundColor: state.profile.darkMode ? '#1e293b' : '#fff' }}/>
-                 <Line type="monotone" dataKey="calories" stroke="#10b981" strokeWidth={3} dot={{r: 4}} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Weight Chart (New) */}
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700">
-          <h3 className="font-semibold mb-4 dark:text-gray-300">Weight Trend</h3>
-          <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data}>
-                 <XAxis dataKey="date" tickFormatter={(val) => val.slice(5)} stroke="#94a3b8" fontSize={12} />
-                 <YAxis stroke="#94a3b8" fontSize={12} domain={['dataMin - 1', 'dataMax + 1']} />
-                 <RechartsTooltip contentStyle={{ backgroundColor: state.profile.darkMode ? '#1e293b' : '#fff' }}/>
-                 <Line type="monotone" dataKey="weight" stroke="#8b5cf6" strokeWidth={3} dot={{r: 4}} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
       </div>
     );
   };
@@ -608,14 +764,35 @@ export default function App() {
             />
            </div>
         </div>
-        <div>
-            <label className="text-sm text-gray-500 block mb-1">Daily Calorie Goal</label>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm text-gray-500 block mb-1">Calories Goal</label>
             <input 
               type="number" 
               value={state.profile.calorieGoal} 
               onChange={(e) => updateProfile({ calorieGoal: Number(e.target.value) })}
               className="w-full p-2 rounded-lg bg-gray-50 dark:bg-slate-700 dark:text-white border-none focus:ring-2 focus:ring-primary"
             />
+          </div>
+          <div>
+            <label className="text-sm text-gray-500 block mb-1">Sleep Goal (hrs)</label>
+            <input 
+              type="number" 
+              value={state.profile.sleepGoal} 
+              onChange={(e) => updateProfile({ sleepGoal: Number(e.target.value) })}
+              className="w-full p-2 rounded-lg bg-gray-50 dark:bg-slate-700 dark:text-white border-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+        </div>
+        <div>
+          <label className="text-sm text-gray-500 block mb-1">Google Client ID (Optional)</label>
+          <input 
+            type="text" 
+            placeholder="For development use only"
+            value={state.profile.googleClientId || ''} 
+            onChange={(e) => updateProfile({ googleClientId: e.target.value })}
+            className="w-full p-2 rounded-lg bg-gray-50 dark:bg-slate-700 dark:text-white border-none focus:ring-2 focus:ring-primary text-xs"
+          />
         </div>
       </div>
 
@@ -633,6 +810,25 @@ export default function App() {
              className={`w-12 h-6 rounded-full p-1 transition-colors ${state.profile.darkMode ? 'bg-indigo-500' : 'bg-gray-300'}`}
            >
              <div className={`w-4 h-4 bg-white rounded-full transition-transform ${state.profile.darkMode ? 'translate-x-6' : ''}`} />
+           </button>
+        </div>
+
+        {/* Notification Toggle */}
+        <div className="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700">
+           <div className="flex items-center gap-3">
+             <div className="p-2 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-lg">
+               <Bell className="w-5 h-5" />
+             </div>
+             <div>
+                <span className="font-medium dark:text-white block">Reminders</span>
+                <span className="text-xs text-gray-500">Hydration & Log checks</span>
+             </div>
+           </div>
+           <button 
+             onClick={handleNotificationToggle}
+             className={`w-12 h-6 rounded-full p-1 transition-colors ${state.profile.notificationsEnabled ? 'bg-rose-500' : 'bg-gray-300'}`}
+           >
+             <div className={`w-4 h-4 bg-white rounded-full transition-transform ${state.profile.notificationsEnabled ? 'translate-x-6' : ''}`} />
            </button>
         </div>
 
@@ -812,12 +1008,17 @@ export default function App() {
             />
           </Modal>
         )}
-      </div>
-      
-      {/* Decorative Sparkle for Insight */}
-      <div className="hidden">
-        <SparklesIcon className="w-6 h-6" />
-        <UtensilsIcon className="w-6 h-6" />
+
+        {activeModal === ModalType.SLEEP && (
+          <Modal title="Sleep Duration">
+            <MetricInput 
+              value={currentLog.sleep || 0} 
+              unit="hours" 
+              onChange={(val) => updateLog({ sleep: val })} 
+              onSave={closeModal} 
+            />
+          </Modal>
+        )}
       </div>
     </div>
   );
@@ -825,7 +1026,7 @@ export default function App() {
 
 // Simple icons for local usage to avoid large imports if tree shaking fails
 const SparklesIcon = ({className}: {className?: string}) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L12 3Z"/></svg>
 )
 
 const UtensilsIcon = ({className}: {className?: string}) => (
