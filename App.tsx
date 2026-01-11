@@ -3,7 +3,7 @@ import {
   Activity, Droplets, Flame, Footprints, Timer, 
   Settings, TrendingUp, Moon, Sun, User as UserIcon, 
   Plus, CalendarCheck, Share2, UploadCloud, DownloadCloud,
-  ChevronRight, ChevronLeft, X, RefreshCw, Lightbulb, Cloud, CheckCircle, AlertCircle, Bell, Scale, Minus, Trash2
+  ChevronRight, ChevronLeft, X, RefreshCw, Lightbulb, Cloud, CheckCircle, AlertCircle, Bell, Scale, Minus, Trash2, Loader2
 } from 'lucide-react';
 import { RadialProgress } from './components/RadialChart';
 import { MealLogger } from './components/MealLogger';
@@ -147,7 +147,10 @@ export default function App() {
       setGoogleToken(token);
       setSyncStatus('success');
       setSyncMessage('Connected to Drive');
-      setTimeout(() => setSyncStatus('idle'), 3000);
+      setTimeout(() => {
+        setSyncStatus('idle');
+        setSyncMessage('');
+      }, 3000);
     });
   }, []);
 
@@ -277,7 +280,10 @@ export default function App() {
 
   const handleDriveBackup = async (silent = false) => {
     if (!googleToken) return;
-    if (!silent) setSyncStatus('syncing');
+    if (!silent) {
+      setSyncStatus('syncing');
+      setSyncMessage('Backing up...');
+    }
     
     try {
       await uploadDataToDrive(state, googleToken);
@@ -285,13 +291,20 @@ export default function App() {
       if (!silent) {
         setSyncStatus('success');
         setSyncMessage('Backup Complete');
-        setTimeout(() => setSyncStatus('idle'), 3000);
+        setTimeout(() => {
+          setSyncStatus('idle');
+          setSyncMessage('');
+        }, 3000);
       }
     } catch (error) {
       console.error(error);
       if (!silent) {
         setSyncStatus('error');
         setSyncMessage('Backup Failed');
+        setTimeout(() => {
+          setSyncStatus('idle');
+          setSyncMessage('');
+        }, 3000);
       }
     }
   };
@@ -299,6 +312,7 @@ export default function App() {
   const handleDriveRestore = async () => {
     if (!googleToken) return;
     setSyncStatus('syncing');
+    setSyncMessage('Restoring...');
     
     try {
       const data = await downloadDataFromDrive(googleToken);
@@ -306,7 +320,10 @@ export default function App() {
         setState(data);
         setSyncStatus('success');
         setSyncMessage('Restore Complete');
-        setTimeout(() => setSyncStatus('idle'), 3000);
+        setTimeout(() => {
+          setSyncStatus('idle');
+          setSyncMessage('');
+        }, 3000);
       } else {
         throw new Error("Invalid data format");
       }
@@ -314,6 +331,10 @@ export default function App() {
       console.error(error);
       setSyncStatus('error');
       setSyncMessage('No Backup Found or Error');
+      setTimeout(() => {
+        setSyncStatus('idle');
+        setSyncMessage('');
+      }, 3000);
     }
   };
 
@@ -977,11 +998,53 @@ export default function App() {
             </div>
              {googleToken && (
                 <div className="flex gap-3">
-                    <button onClick={() => handleDriveBackup()} className="flex-1 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition-colors">Backup Now</button>
-                    <button onClick={handleDriveRestore} className="flex-1 py-2 bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors">Restore</button>
+                    <button 
+                        onClick={() => handleDriveBackup()} 
+                        disabled={syncStatus === 'syncing'}
+                        className="flex-1 py-2 flex items-center justify-center gap-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {syncStatus === 'syncing' && syncMessage.includes('Backing') ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Backing up...</span>
+                            </>
+                        ) : (
+                            <>
+                                <UploadCloud className="w-4 h-4" />
+                                <span>Backup Now</span>
+                            </>
+                        )}
+                    </button>
+                    <button 
+                        onClick={handleDriveRestore} 
+                        disabled={syncStatus === 'syncing'}
+                        className="flex-1 py-2 flex items-center justify-center gap-2 bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                         {syncStatus === 'syncing' && syncMessage.includes('Restoring') ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Restoring...</span>
+                            </>
+                        ) : (
+                            <>
+                                <DownloadCloud className="w-4 h-4" />
+                                <span>Restore</span>
+                            </>
+                        )}
+                    </button>
                 </div>
              )}
-             {syncMessage && <p className="text-xs text-center text-gray-500">{syncMessage}</p>}
+             {/* Status Messages */}
+             {syncStatus === 'success' && (
+                 <div className="p-2 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-lg text-xs font-medium text-center flex items-center justify-center gap-2 animate-in fade-in slide-in-from-top-1">
+                     <CheckCircle className="w-3 h-3" /> {syncMessage}
+                 </div>
+             )}
+             {syncStatus === 'error' && (
+                 <div className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-xs font-medium text-center flex items-center justify-center gap-2 animate-in fade-in slide-in-from-top-1">
+                     <AlertCircle className="w-3 h-3" /> {syncMessage}
+                 </div>
+             )}
          </div>
       </div>
       
