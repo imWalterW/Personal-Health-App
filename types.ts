@@ -26,6 +26,8 @@ export interface UserProfile {
   height: number; // cm
   weightGoal: number; // kg
   stepGoal: number;
+  walkTimeGoal: number; // minutes
+  workoutTimeGoal: number; // minutes
   calorieGoal: number;
   sleepGoal: number; // hours
   avatarUrl: string | null;

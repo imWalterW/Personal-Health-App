@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Activity, Droplets, Flame, Footprints, Timer, 
@@ -65,6 +66,8 @@ export default function App() {
         height: 170,
         weightGoal: 70,
         stepGoal: 10000,
+        walkTimeGoal: 60,
+        workoutTimeGoal: 30,
         calorieGoal: 2000,
         sleepGoal: 8,
         avatarUrl: null,
@@ -114,6 +117,10 @@ export default function App() {
   const bmi = state.profile.height > 0 && currentLog.weight > 0 
     ? (currentLog.weight / ((state.profile.height/100) ** 2)).toFixed(1) 
     : '--';
+  
+  const bmiNum = parseFloat(bmi);
+  const isHealthyBMI = !isNaN(bmiNum) && bmiNum >= 18.5 && bmiNum <= 24.9;
+  const isBMIConfigured = !isNaN(bmiNum);
 
   // --- Effects ---
 
@@ -146,6 +153,12 @@ export default function App() {
   // Notifications Logic
   useEffect(() => {
     if (!state.profile.notificationsEnabled) return;
+
+    // Browser support check
+    if (!("Notification" in window)) {
+        console.warn("This browser does not support desktop notification");
+        return;
+    }
 
     if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
       Notification.requestPermission();
@@ -215,13 +228,18 @@ export default function App() {
   };
 
   const handleNotificationToggle = () => {
+    if (!("Notification" in window)) {
+        alert("This browser does not support notifications.");
+        return;
+    }
+
     if (!state.profile.notificationsEnabled) {
       Notification.requestPermission().then(permission => {
         if (permission === 'granted') {
           updateProfile({ notificationsEnabled: true });
           new Notification("Notifications Enabled", { body: "We'll remind you to stay healthy!" });
         } else {
-          alert("We need permission to send you reminders. Please enable notifications in your browser settings.");
+          alert("Permission denied or restricted. On iOS, you may need to add this app to your Home Screen to enable notifications.");
         }
       });
     } else {
@@ -441,6 +459,7 @@ export default function App() {
              <div>
                <h3 className="font-semibold text-gray-600 dark:text-gray-300 flex items-center gap-2">
                  <UtensilsIcon className="w-4 h-4" /> Nutrition
+                 {currentCalories >= state.profile.calorieGoal && <CheckCircle className="w-4 h-4 text-green-500" />}
                </h3>
                <p className="text-2xl font-bold dark:text-white mt-1">{currentCalories} <span className="text-sm font-normal text-gray-400">/ {state.profile.calorieGoal} kcal</span></p>
              </div>
@@ -472,13 +491,16 @@ export default function App() {
         {/* Steps */}
         <div 
           onClick={() => setActiveModal(ModalType.STEPS)}
-          className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 hover:border-primary/50 transition-colors cursor-pointer active:scale-95"
+          className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 hover:border-primary/50 transition-colors cursor-pointer active:scale-95 relative"
         >
           <div className="flex justify-between items-start mb-2">
             <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg text-orange-600">
               <Footprints className="w-5 h-5" />
             </div>
-            <span className="text-xs text-gray-400">Goal: {state.profile.stepGoal}</span>
+            <div className="flex items-center gap-1">
+               <span className="text-xs text-gray-400">Goal: {state.profile.stepGoal}</span>
+               {currentLog.steps >= state.profile.stepGoal && <CheckCircle className="w-3 h-3 text-green-500" />}
+            </div>
           </div>
           <p className="text-2xl font-bold dark:text-white">{currentLog.steps.toLocaleString()}</p>
           <p className="text-xs text-gray-500">Steps</p>
@@ -490,13 +512,18 @@ export default function App() {
         {/* Weight - Added to Grid */}
         <div 
           onClick={() => setActiveModal(ModalType.WEIGHT)}
-          className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 hover:border-blue-500/50 transition-colors cursor-pointer active:scale-95"
+          className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 hover:border-blue-500/50 transition-colors cursor-pointer active:scale-95 relative"
         >
           <div className="flex justify-between items-start mb-2">
             <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-blue-600">
               <Scale className="w-5 h-5" />
             </div>
-            <span className="text-xs text-gray-400">BMI: {bmi}</span>
+            <div className="flex items-center gap-1">
+               {isBMIConfigured && (
+                 isHealthyBMI ? <CheckCircle className="w-3 h-3 text-green-500" /> : <AlertCircle className="w-3 h-3 text-amber-500" />
+               )}
+               <span className="text-xs text-gray-400">BMI: {bmi}</span>
+            </div>
           </div>
           <p className="text-2xl font-bold dark:text-white">{currentLog.weight || '--'} <span className="text-sm font-normal text-gray-400">kg</span></p>
           <p className="text-xs text-gray-500">Weight</p>
@@ -505,13 +532,16 @@ export default function App() {
         {/* Walking Duration */}
         <div 
           onClick={() => setActiveModal(ModalType.WALK)}
-          className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 hover:border-teal-500/50 transition-colors cursor-pointer active:scale-95"
+          className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 hover:border-teal-500/50 transition-colors cursor-pointer active:scale-95 relative"
         >
           <div className="flex justify-between items-start mb-2">
             <div className="p-2 bg-teal-100 dark:bg-teal-900/30 rounded-lg text-teal-600">
               <Timer className="w-5 h-5" />
             </div>
-            <span className="text-xs text-gray-400">Time</span>
+            <div className="flex items-center gap-1">
+               <span className="text-xs text-gray-400">Goal: {state.profile.walkTimeGoal}</span>
+               {currentLog.walkTime >= state.profile.walkTimeGoal && <CheckCircle className="w-3 h-3 text-green-500" />}
+            </div>
           </div>
           <p className="text-2xl font-bold dark:text-white">{currentLog.walkTime} <span className="text-sm font-normal text-gray-400">min</span></p>
           <p className="text-xs text-gray-500">Walking</p>
@@ -520,11 +550,15 @@ export default function App() {
         {/* Workout */}
         <div 
           onClick={() => setActiveModal(ModalType.WORKOUT)}
-          className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 hover:border-purple-500/50 transition-colors cursor-pointer active:scale-95"
+          className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 hover:border-purple-500/50 transition-colors cursor-pointer active:scale-95 relative"
         >
           <div className="flex justify-between items-start mb-2">
             <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg text-purple-600">
               <Activity className="w-5 h-5" />
+            </div>
+            <div className="flex items-center gap-1">
+               <span className="text-xs text-gray-400">Goal: {state.profile.workoutTimeGoal}</span>
+               {currentLog.workoutTime >= state.profile.workoutTimeGoal && <CheckCircle className="w-3 h-3 text-green-500" />}
             </div>
           </div>
           <p className="text-2xl font-bold dark:text-white">{currentLog.workoutTime} <span className="text-sm font-normal text-gray-400">min</span></p>
@@ -549,7 +583,10 @@ export default function App() {
                     <Droplets className="w-6 h-6" />
                 </div>
                 <div>
-                    <p className="text-2xl font-bold dark:text-white">{currentLog.waterBottles} <span className="text-sm font-normal text-gray-400">/ 8</span></p>
+                    <p className="text-2xl font-bold dark:text-white flex items-center gap-2">
+                        {currentLog.waterBottles} <span className="text-sm font-normal text-gray-400">/ 8</span>
+                        {currentLog.waterBottles >= 8 && <CheckCircle className="w-4 h-4 text-green-500" />}
+                    </p>
                     <p className="text-xs text-gray-500">Hydration ({(currentLog.waterBottles * 0.75).toFixed(2)}L)</p>
                 </div>
             </div>
@@ -589,7 +626,10 @@ export default function App() {
                   <Moon className="w-6 h-6" />
               </div>
               <div>
-                  <p className="text-2xl font-bold dark:text-white">{currentLog.sleep || 0} <span className="text-sm font-normal text-gray-400">hrs</span></p>
+                  <p className="text-2xl font-bold dark:text-white flex items-center gap-2">
+                      {currentLog.sleep || 0} <span className="text-sm font-normal text-gray-400">hrs</span>
+                      {currentLog.sleep >= state.profile.sleepGoal && <CheckCircle className="w-4 h-4 text-green-500" />}
+                  </p>
                   <p className="text-xs text-gray-500">Sleep Duration</p>
               </div>
           </div>
@@ -648,6 +688,32 @@ export default function App() {
                   contentStyle={{ backgroundColor: state.profile.darkMode ? '#1e293b' : '#fff', borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} 
                 />
                 <Area type="monotone" dataKey="steps" stroke="#f97316" fillOpacity={1} fill="url(#colorSteps)" strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Walking Time Chart (New) */}
+         <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700">
+          <h3 className="font-semibold mb-4 dark:text-gray-300 flex items-center gap-2">
+            <Timer className="w-4 h-4 text-teal-500" /> Walking Duration
+          </h3>
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={data}>
+                <defs>
+                  <linearGradient id="colorWalk" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#14b8a6" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
+                <XAxis dataKey="date" tickFormatter={(val) => val.slice(5)} stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis hide />
+                <RechartsTooltip 
+                  contentStyle={{ backgroundColor: state.profile.darkMode ? '#1e293b' : '#fff', borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} 
+                />
+                <Area type="monotone" dataKey="walkTime" stroke="#14b8a6" fillOpacity={1} fill="url(#colorWalk)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -795,6 +861,38 @@ export default function App() {
             />
            </div>
         </div>
+
+        {/* New Goals: Step, Walk, Workout */}
+        <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="text-[10px] text-gray-500 block mb-1">Step Goal</label>
+              <input 
+                type="number" 
+                value={state.profile.stepGoal || 10000} 
+                onChange={(e) => updateProfile({ stepGoal: Number(e.target.value) })}
+                className="w-full p-2 rounded-lg bg-gray-50 dark:bg-slate-700 dark:text-white border-none focus:ring-2 focus:ring-primary text-sm"
+              />
+            </div>
+             <div>
+              <label className="text-[10px] text-gray-500 block mb-1">Walk Goal (m)</label>
+              <input 
+                type="number" 
+                value={state.profile.walkTimeGoal || 60} 
+                onChange={(e) => updateProfile({ walkTimeGoal: Number(e.target.value) })}
+                className="w-full p-2 rounded-lg bg-gray-50 dark:bg-slate-700 dark:text-white border-none focus:ring-2 focus:ring-primary text-sm"
+              />
+            </div>
+             <div>
+              <label className="text-[10px] text-gray-500 block mb-1">Workout (m)</label>
+              <input 
+                type="number" 
+                value={state.profile.workoutTimeGoal || 30} 
+                onChange={(e) => updateProfile({ workoutTimeGoal: Number(e.target.value) })}
+                className="w-full p-2 rounded-lg bg-gray-50 dark:bg-slate-700 dark:text-white border-none focus:ring-2 focus:ring-primary text-sm"
+              />
+            </div>
+        </div>
+
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="text-sm text-gray-500 block mb-1">Calories Goal</label>
