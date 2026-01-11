@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Activity, Droplets, Flame, Footprints, Timer, 
   Settings, TrendingUp, Moon, Sun, User as UserIcon, 
   Plus, CalendarCheck, Share2, UploadCloud, DownloadCloud,
-  ChevronRight, ChevronLeft, X, RefreshCw, Lightbulb, Cloud, CheckCircle, AlertCircle, Bell
+  ChevronRight, ChevronLeft, X, RefreshCw, Lightbulb, Cloud, CheckCircle, AlertCircle, Bell, Scale, Minus
 } from 'lucide-react';
 import { RadialProgress } from './components/RadialChart';
 import { MealLogger } from './components/MealLogger';
@@ -488,25 +487,19 @@ export default function App() {
           </div>
         </div>
 
-        {/* Water */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 relative overflow-hidden cursor-pointer"
-             onClick={() => updateLog({ waterBottles: currentLog.waterBottles + 1 })}>
-          <div 
-            className="absolute bottom-0 left-0 right-0 bg-blue-500/10 transition-all duration-700 ease-in-out"
-            style={{ height: `${Math.min(100, (currentLog.waterBottles / 8) * 100)}%` }}
-          />
-          {showConfetti && <div className="absolute inset-0 flex items-center justify-center pointer-events-none animate-ping text-blue-500 font-bold text-4xl opacity-20">+</div>}
-
-          <div className="p-4 relative z-10">
-            <div className="flex justify-between items-start mb-2">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-blue-600">
-                <Droplets className="w-5 h-5" />
-              </div>
-              <span className="text-xs text-gray-400">Target: 8</span>
+        {/* Weight - Added to Grid */}
+        <div 
+          onClick={() => setActiveModal(ModalType.WEIGHT)}
+          className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 hover:border-blue-500/50 transition-colors cursor-pointer active:scale-95"
+        >
+          <div className="flex justify-between items-start mb-2">
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-blue-600">
+              <Scale className="w-5 h-5" />
             </div>
-            <p className="text-2xl font-bold dark:text-white">{currentLog.waterBottles}</p>
-            <p className="text-xs text-gray-500">Bottles ({(currentLog.waterBottles * 0.75).toFixed(2)}L)</p>
+            <span className="text-xs text-gray-400">BMI: {bmi}</span>
           </div>
+          <p className="text-2xl font-bold dark:text-white">{currentLog.weight || '--'} <span className="text-sm font-normal text-gray-400">kg</span></p>
+          <p className="text-xs text-gray-500">Weight</p>
         </div>
 
         {/* Walking Duration */}
@@ -524,21 +517,6 @@ export default function App() {
           <p className="text-xs text-gray-500">Walking</p>
         </div>
 
-        {/* Sleep Tracker */}
-        <div 
-          onClick={() => setActiveModal(ModalType.SLEEP)}
-          className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 hover:border-indigo-500/50 transition-colors cursor-pointer active:scale-95"
-        >
-          <div className="flex justify-between items-start mb-2">
-            <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg text-indigo-600">
-              <Moon className="w-5 h-5" />
-            </div>
-            <span className="text-xs text-gray-400">Goal: {state.profile.sleepGoal}h</span>
-          </div>
-          <p className="text-2xl font-bold dark:text-white">{currentLog.sleep || 0} <span className="text-sm font-normal text-gray-400">hrs</span></p>
-          <p className="text-xs text-gray-500">Sleep</p>
-        </div>
-
         {/* Workout */}
         <div 
           onClick={() => setActiveModal(ModalType.WORKOUT)}
@@ -554,19 +532,70 @@ export default function App() {
         </div>
       </div>
       
-      {/* Weight Card */}
+      {/* Water Card - Full Width at Bottom */}
       <div 
-        onClick={() => setActiveModal(ModalType.WEIGHT)}
+        className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 relative overflow-hidden transition-transform"
+      >
+        {/* Background Animation - Horizontal Fill */}
+        <div 
+            className="absolute top-0 left-0 bottom-0 bg-blue-500/10 transition-all duration-700 ease-in-out"
+            style={{ width: `${Math.min(100, (currentLog.waterBottles / 8) * 100)}%` }}
+        />
+        {showConfetti && <div className="absolute inset-0 flex items-center justify-center pointer-events-none animate-ping text-blue-500 font-bold text-4xl opacity-20">+</div>}
+
+        <div className="relative z-10 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+                <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full text-blue-600">
+                    <Droplets className="w-6 h-6" />
+                </div>
+                <div>
+                    <p className="text-2xl font-bold dark:text-white">{currentLog.waterBottles} <span className="text-sm font-normal text-gray-400">/ 8</span></p>
+                    <p className="text-xs text-gray-500">Hydration ({(currentLog.waterBottles * 0.75).toFixed(2)}L)</p>
+                </div>
+            </div>
+            
+             <div className="flex items-center gap-2">
+                <button 
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        if (currentLog.waterBottles > 0) {
+                             updateLog({ waterBottles: currentLog.waterBottles - 1 });
+                        }
+                    }}
+                    className="w-8 h-8 bg-blue-50 dark:bg-slate-700/50 rounded-full flex items-center justify-center hover:bg-blue-100 dark:hover:bg-slate-600 transition-colors"
+                >
+                    <Minus className="w-4 h-4 text-blue-500" />
+                </button>
+                <button 
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        updateLog({ waterBottles: currentLog.waterBottles + 1 });
+                    }}
+                    className="w-10 h-10 bg-blue-50 dark:bg-slate-700/50 rounded-full flex items-center justify-center hover:bg-blue-100 dark:hover:bg-slate-600 transition-colors"
+                >
+                    <Plus className="w-5 h-5 text-blue-500" />
+                </button>
+            </div>
+        </div>
+      </div>
+
+      {/* Sleep Tracker - Full Width Below Water */}
+      <div 
+        onClick={() => setActiveModal(ModalType.SLEEP)}
         className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 flex items-center justify-between cursor-pointer active:scale-95 transition-transform"
       >
-        <div>
-          <p className="text-sm text-gray-500">Current Weight</p>
-          <p className="text-2xl font-bold dark:text-white">{currentLog.weight || '--'} <span className="text-sm font-normal text-gray-400">kg</span></p>
-          <p className="text-xs text-gray-400 mt-1">BMI: {bmi}</p>
-        </div>
-         <div className="w-10 h-10 bg-gray-100 dark:bg-slate-700 rounded-full flex items-center justify-center">
-            <ChevronRight className="w-5 h-5 text-gray-500" />
-         </div>
+          <div className="flex items-center gap-4">
+              <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-full text-indigo-600">
+                  <Moon className="w-6 h-6" />
+              </div>
+              <div>
+                  <p className="text-2xl font-bold dark:text-white">{currentLog.sleep || 0} <span className="text-sm font-normal text-gray-400">hrs</span></p>
+                  <p className="text-xs text-gray-500">Sleep Duration</p>
+              </div>
+          </div>
+          <div className="w-10 h-10 bg-gray-100 dark:bg-slate-700 rounded-full flex items-center justify-center">
+              <ChevronRight className="w-5 h-5 text-gray-500" />
+          </div>
       </div>
     </div>
   );
@@ -700,8 +729,10 @@ export default function App() {
 
   const renderProfile = () => (
     <div className="space-y-6 pb-24">
-      <div className="flex flex-col items-center">
-        <div className="relative group cursor-pointer" onClick={() => document.getElementById('avatar-upload')?.click()}>
+      <h2 className="text-2xl font-bold dark:text-white">Profile & Settings</h2>
+      
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col items-center">
+         <div className="relative group cursor-pointer" onClick={() => document.getElementById('avatar-upload')?.click()}>
           <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200 dark:bg-slate-700 ring-4 ring-white dark:ring-slate-800 shadow-lg">
             {state.profile.avatarUrl ? (
               <img src={state.profile.avatarUrl} alt="Profile" className="w-full h-full object-cover" />
@@ -729,11 +760,11 @@ export default function App() {
             }} 
           />
         </div>
-        <h2 className="mt-4 text-xl font-bold dark:text-white">{state.profile.name}</h2>
-        <p className="text-gray-500 text-sm">VitalSync Member</p>
+         <h3 className="text-xl font-bold dark:text-white mt-4">{state.profile.name}</h3>
+         <p className="text-gray-500 text-sm">Fitness Enthusiast</p>
       </div>
 
-      {/* Settings Form */}
+       {/* Settings Form */}
       <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-slate-700 space-y-4">
         <div>
           <label className="text-sm text-gray-500 block mb-1">Display Name</label>
@@ -784,242 +815,158 @@ export default function App() {
             />
           </div>
         </div>
-        <div>
-          <label className="text-sm text-gray-500 block mb-1">Google Client ID (Optional)</label>
-          <input 
-            type="text" 
-            placeholder="For development use only"
-            value={state.profile.googleClientId || ''} 
-            onChange={(e) => updateProfile({ googleClientId: e.target.value })}
-            className="w-full p-2 rounded-lg bg-gray-50 dark:bg-slate-700 dark:text-white border-none focus:ring-2 focus:ring-primary text-xs"
-          />
-        </div>
       </div>
 
-      {/* Toggles & Actions */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700">
-           <div className="flex items-center gap-3">
-             <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 rounded-lg">
-               {state.profile.darkMode ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-             </div>
-             <span className="font-medium dark:text-white">Dark Mode</span>
-           </div>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
+         <div className="p-4 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between">
+           <span className="flex items-center gap-3 dark:text-gray-200">
+             <Bell className="w-5 h-5 text-gray-400" />
+             Notifications
+           </span>
            <button 
-             onClick={() => updateProfile({ darkMode: !state.profile.darkMode })}
-             className={`w-12 h-6 rounded-full p-1 transition-colors ${state.profile.darkMode ? 'bg-indigo-500' : 'bg-gray-300'}`}
+            onClick={handleNotificationToggle}
+            className={`w-12 h-6 rounded-full transition-colors relative ${state.profile.notificationsEnabled ? 'bg-primary' : 'bg-gray-200 dark:bg-slate-700'}`}
            >
-             <div className={`w-4 h-4 bg-white rounded-full transition-transform ${state.profile.darkMode ? 'translate-x-6' : ''}`} />
+             <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${state.profile.notificationsEnabled ? 'left-7' : 'left-1'}`} />
            </button>
-        </div>
-
-        {/* Notification Toggle */}
-        <div className="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700">
-           <div className="flex items-center gap-3">
-             <div className="p-2 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-lg">
-               <Bell className="w-5 h-5" />
-             </div>
-             <div>
-                <span className="font-medium dark:text-white block">Reminders</span>
-                <span className="text-xs text-gray-500">Hydration & Log checks</span>
-             </div>
-           </div>
-           <button 
-             onClick={handleNotificationToggle}
-             className={`w-12 h-6 rounded-full p-1 transition-colors ${state.profile.notificationsEnabled ? 'bg-rose-500' : 'bg-gray-300'}`}
-           >
-             <div className={`w-4 h-4 bg-white rounded-full transition-transform ${state.profile.notificationsEnabled ? 'translate-x-6' : ''}`} />
-           </button>
-        </div>
-
-        {/* Local Backup Import/Export */}
-        <div className="grid grid-cols-2 gap-3">
-          <button 
-            onClick={handleExport}
-            className="flex flex-col items-center justify-center p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700"
-          >
-            <DownloadCloud className="w-6 h-6 text-primary mb-1" />
-            <span className="text-xs font-medium dark:text-gray-300">Local Backup</span>
-          </button>
-          <button 
-            onClick={() => fileInputRef.current?.click()}
-            className="flex flex-col items-center justify-center p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700"
-          >
-            <UploadCloud className="w-6 h-6 text-secondary mb-1" />
-            <span className="text-xs font-medium dark:text-gray-300">Local Restore</span>
-            <input type="file" ref={fileInputRef} onChange={handleImport} className="hidden" accept=".json" />
-          </button>
-        </div>
-        
-        {/* Google Drive Sync */}
-        <div className="p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 space-y-4">
-           <div className="flex items-center gap-3 mb-2">
-             <div className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-lg">
-               <Cloud className="w-5 h-5" />
-             </div>
-             <span className="font-medium dark:text-white">Google Drive Backup</span>
-           </div>
-           
-           {!googleToken ? (
-             <button 
-               onClick={signInToGoogle}
-               className="w-full py-2.5 bg-white border border-gray-300 dark:bg-slate-700 dark:border-slate-600 rounded-lg text-sm font-medium flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors"
-             >
-               <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" className="w-4 h-4" alt="G" />
-               Connect Google Drive
-             </button>
-           ) : (
-             <div className="space-y-3">
-                {/* Auto Backup Toggle */}
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500">Auto-backup on change</span>
-                  <button 
-                    onClick={() => updateProfile({ autoBackup: !state.profile.autoBackup })}
-                    className={`w-10 h-5 rounded-full p-0.5 transition-colors ${state.profile.autoBackup ? 'bg-green-500' : 'bg-gray-300'}`}
-                  >
-                    <div className={`w-4 h-4 bg-white rounded-full transition-transform ${state.profile.autoBackup ? 'translate-x-5' : ''}`} />
-                  </button>
-                </div>
-                
+         </div>
+         
+         <div className="p-4 border-b border-gray-100 dark:border-slate-700 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+                <span className="flex items-center gap-3 dark:text-gray-200">
+                <Cloud className="w-5 h-5 text-gray-400" />
+                Google Drive Backup
+                </span>
                 <div className="flex gap-2">
-                   <button 
-                     onClick={() => handleDriveBackup()}
-                     disabled={syncStatus === 'syncing'}
-                     className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors disabled:opacity-50"
-                   >
-                     {syncStatus === 'syncing' ? 'Syncing...' : 'Backup Now'}
-                   </button>
-                   <button 
-                     onClick={handleDriveRestore}
-                     disabled={syncStatus === 'syncing'}
-                     className="flex-1 py-2 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-white rounded-lg text-xs font-bold hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors disabled:opacity-50"
-                   >
-                     Restore Cloud
-                   </button>
-                </div>
-
-                {/* Status Message */}
-                {syncMessage && (
-                   <div className={`text-xs flex items-center gap-1 ${syncStatus === 'error' ? 'text-red-500' : 'text-green-600'}`}>
-                      {syncStatus === 'error' ? <AlertCircle className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
-                      {syncMessage}
-                   </div>
+                {googleToken ? (
+                    <CheckCircle className="w-5 h-5 text-green-500" />
+                ) : (
+                    <button 
+                      onClick={signInToGoogle} 
+                      className="text-xs bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-white hover:bg-gray-200 dark:hover:bg-slate-600 px-3 py-1 rounded-lg border border-gray-200 dark:border-slate-600 transition-colors"
+                    >
+                      Connect
+                    </button>
                 )}
-             </div>
-           )}
-        </div>
+                </div>
+            </div>
+             {googleToken && (
+                <div className="flex gap-3">
+                    <button onClick={() => handleDriveBackup()} className="flex-1 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition-colors">Backup Now</button>
+                    <button onClick={handleDriveRestore} className="flex-1 py-2 bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors">Restore</button>
+                </div>
+             )}
+             {syncMessage && <p className="text-xs text-center text-gray-500">{syncMessage}</p>}
+         </div>
       </div>
+      
+       <div className="grid grid-cols-2 gap-4">
+         <button onClick={handleExport} className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 flex flex-col items-center gap-2 hover:bg-gray-50 dark:hover:bg-slate-700/50">
+            <DownloadCloud className="w-6 h-6 text-gray-400" />
+            <span className="text-xs font-medium dark:text-gray-300">Export JSON</span>
+         </button>
+         <button onClick={() => fileInputRef.current?.click()} className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 flex flex-col items-center gap-2 hover:bg-gray-50 dark:hover:bg-slate-700/50">
+            <UploadCloud className="w-6 h-6 text-gray-400" />
+            <span className="text-xs font-medium dark:text-gray-300">Import JSON</span>
+         </button>
+         <input type="file" ref={fileInputRef} onChange={handleImport} className="hidden" accept=".json" />
+       </div>
     </div>
   );
 
   return (
-    <div className={`min-h-screen ${state.profile.darkMode ? 'dark' : ''} bg-gray-50 dark:bg-slate-950 transition-colors duration-300`}>
-      <div className="max-w-md mx-auto min-h-screen relative bg-gray-50 dark:bg-slate-950 shadow-2xl overflow-hidden">
-        
-        {/* Content Area */}
-        <main className="p-6 h-full overflow-y-auto scrollbar-hide">
-          {activeTab === 'dashboard' && renderDashboard()}
-          {activeTab === 'stats' && renderStats()}
-          {activeTab === 'profile' && renderProfile()}
-        </main>
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 text-gray-800 dark:text-slate-100 font-sans selection:bg-primary/30">
+       <div className="max-w-md mx-auto min-h-screen bg-white dark:bg-slate-900 shadow-2xl relative">
+          
+          <main className="p-4 min-h-screen">
+            {activeTab === 'dashboard' && renderDashboard()}
+            {activeTab === 'stats' && renderStats()}
+            {activeTab === 'profile' && renderProfile()}
+          </main>
 
-        {/* Bottom Navigation */}
-        <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-t border-gray-200 dark:border-slate-800 p-4 flex justify-around items-center z-40">
-          <button 
-            onClick={() => setActiveTab('dashboard')} 
-            className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'dashboard' ? 'text-primary' : 'text-gray-400'}`}
-          >
-            <Activity className="w-6 h-6" />
-            <span className="text-[10px] font-medium">Daily</span>
-          </button>
-          <button 
-            onClick={() => setActiveTab('stats')} 
-            className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'stats' ? 'text-primary' : 'text-gray-400'}`}
-          >
-            <TrendingUp className="w-6 h-6" />
-            <span className="text-[10px] font-medium">Stats</span>
-          </button>
-          <button 
-            onClick={() => setActiveTab('profile')} 
-            className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'profile' ? 'text-primary' : 'text-gray-400'}`}
-          >
-            <UserIcon className="w-6 h-6" />
-            <span className="text-[10px] font-medium">Profile</span>
-          </button>
-        </nav>
+          {/* Bottom Nav */}
+          <nav className="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-gray-100 dark:border-slate-800 p-2 pb-6 z-40 max-w-md mx-auto">
+             <div className="flex justify-around items-end">
+                <button onClick={() => setActiveTab('dashboard')} className={`p-2 flex flex-col items-center gap-1 ${activeTab === 'dashboard' ? 'text-primary' : 'text-gray-400'}`}>
+                   <TrendingUp className="w-6 h-6" />
+                   <span className="text-[10px] font-medium">Daily</span>
+                </button>
+                <button onClick={() => setActiveTab('stats')} className={`p-2 flex flex-col items-center gap-1 ${activeTab === 'stats' ? 'text-primary' : 'text-gray-400'}`}>
+                   <Activity className="w-6 h-6" />
+                   <span className="text-[10px] font-medium">Stats</span>
+                </button>
+                <div className="relative -top-5">
+                   <button 
+                    onClick={() => setActiveModal(ModalType.MEAL)}
+                    className="w-14 h-14 bg-primary text-white rounded-full shadow-lg shadow-primary/40 flex items-center justify-center transform transition-transform hover:scale-105 active:scale-95"
+                   >
+                     <Plus className="w-7 h-7" />
+                   </button>
+                </div>
+                <button onClick={() => setActiveTab('profile')} className={`p-2 flex flex-col items-center gap-1 ${activeTab === 'profile' ? 'text-primary' : 'text-gray-400'}`}>
+                   <UserIcon className="w-6 h-6" />
+                   <span className="text-[10px] font-medium">Profile</span>
+                </button>
+                 <button onClick={() => updateProfile({ darkMode: !state.profile.darkMode })} className={`p-2 flex flex-col items-center gap-1 ${state.profile.darkMode ? 'text-white' : 'text-gray-400'}`}>
+                   {state.profile.darkMode ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
+                   <span className="text-[10px] font-medium">Theme</span>
+                </button>
+             </div>
+          </nav>
 
-        {/* Modals */}
-        {activeModal === ModalType.MEAL && (
-          <Modal title="Log Meal">
-            <MealLogger 
-              profile={state.profile}
-              currentCalories={currentCalories}
-              calorieGoal={state.profile.calorieGoal}
-              onClose={closeModal}
-              onAddMeal={(meal) => {
-                const updatedMeals = [...currentLog.meals, meal];
-                updateLog({ meals: updatedMeals });
-              }}
-              autoSuggest={autoSuggestMeal}
-            />
-          </Modal>
-        )}
+          {/* Modals Layer */}
+          {activeModal !== ModalType.NONE && (
+             <>
+                {activeModal === ModalType.MEAL && (
+                   <Modal title="Log Meal">
+                      <MealLogger 
+                        onAddMeal={(meal) => {
+                           updateLog({ meals: [...currentLog.meals, meal] });
+                        }}
+                        onClose={closeModal}
+                        currentCalories={currentCalories}
+                        calorieGoal={state.profile.calorieGoal}
+                        profile={state.profile}
+                        autoSuggest={autoSuggestMeal}
+                      />
+                   </Modal>
+                )}
+                
+                {/* Steps, Weight, etc reused MetricInput */}
+                {[ModalType.STEPS, ModalType.WEIGHT, ModalType.WALK, ModalType.WORKOUT, ModalType.SLEEP].includes(activeModal) && (
+                   <Modal title={
+                      activeModal === ModalType.STEPS ? "Update Steps" :
+                      activeModal === ModalType.WEIGHT ? "Update Weight" :
+                      activeModal === ModalType.WALK ? "Walking Duration" :
+                      activeModal === ModalType.WORKOUT ? "Workout Duration" : "Sleep Duration"
+                   }>
+                      <MetricInput 
+                         value={
+                            activeModal === ModalType.STEPS ? currentLog.steps :
+                            activeModal === ModalType.WEIGHT ? currentLog.weight :
+                            activeModal === ModalType.WALK ? currentLog.walkTime :
+                            activeModal === ModalType.WORKOUT ? currentLog.workoutTime : currentLog.sleep
+                         }
+                         unit={
+                            activeModal === ModalType.STEPS ? "steps" :
+                            activeModal === ModalType.WEIGHT ? "kg" :
+                            activeModal === ModalType.SLEEP ? "hours" : "min"
+                         }
+                         onChange={(val) => {
+                            if (activeModal === ModalType.STEPS) updateLog({ steps: val });
+                            if (activeModal === ModalType.WEIGHT) updateLog({ weight: val });
+                            if (activeModal === ModalType.WALK) updateLog({ walkTime: val });
+                            if (activeModal === ModalType.WORKOUT) updateLog({ workoutTime: val });
+                            if (activeModal === ModalType.SLEEP) updateLog({ sleep: val });
+                         }}
+                         onSave={closeModal}
+                      />
+                   </Modal>
+                )}
+             </>
+          )}
 
-        {activeModal === ModalType.WEIGHT && (
-          <Modal title="Update Weight">
-            <MetricInput 
-              value={currentLog.weight} 
-              unit="kg" 
-              onChange={(val) => updateLog({ weight: val })} 
-              onSave={closeModal} 
-            />
-          </Modal>
-        )}
-
-        {activeModal === ModalType.STEPS && (
-          <Modal title="Log Steps">
-            <MetricInput 
-              value={currentLog.steps} 
-              unit="steps" 
-              onChange={(val) => updateLog({ steps: val })} 
-              onSave={closeModal} 
-            />
-          </Modal>
-        )}
-
-         {activeModal === ModalType.WALK && (
-          <Modal title="Walking Duration">
-            <MetricInput 
-              value={currentLog.walkTime} 
-              unit="min" 
-              onChange={(val) => updateLog({ walkTime: val })} 
-              onSave={closeModal} 
-            />
-          </Modal>
-        )}
-
-        {activeModal === ModalType.WORKOUT && (
-          <Modal title="Workout Duration">
-            <MetricInput 
-              value={currentLog.workoutTime} 
-              unit="min" 
-              onChange={(val) => updateLog({ workoutTime: val })} 
-              onSave={closeModal} 
-            />
-          </Modal>
-        )}
-
-        {activeModal === ModalType.SLEEP && (
-          <Modal title="Sleep Duration">
-            <MetricInput 
-              value={currentLog.sleep || 0} 
-              unit="hours" 
-              onChange={(val) => updateLog({ sleep: val })} 
-              onSave={closeModal} 
-            />
-          </Modal>
-        )}
-      </div>
+       </div>
     </div>
   );
 }

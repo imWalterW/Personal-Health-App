@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { RadialBarChart, RadialBar, ResponsiveContainer, PolarAngleAxis } from 'recharts';
 
@@ -28,6 +29,11 @@ export const RadialProgress: React.FC<RadialChartProps> = ({ current, total, col
           <RadialBar background dataKey="value" cornerRadius={5} />
         </RadialBarChart>
       </ResponsiveContainer>
+      
+      {/* Centered Value Overlay */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <span className="text-[10px] font-bold text-gray-700 dark:text-gray-200">{current}</span>
+      </div>
     </div>
   );
 };

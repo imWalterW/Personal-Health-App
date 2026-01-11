@@ -1,37 +1,11 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { DailyLog, UserProfile, Meal } from "../types";
 
-// Initialize AI lazily or safely to prevent crash on load if env is missing
-const apiKey = process.env.API_KEY;
-let ai: GoogleGenAI | null = null;
-
-if (apiKey) {
-  try {
-    ai = new GoogleGenAI({ apiKey });
-  } catch (e) {
-    console.error("Failed to initialize Gemini Client", e);
-  }
-} else {
-  console.warn("API_KEY is missing. AI features will be disabled.");
-}
-
-// Helper to check if AI is available
-const isAiAvailable = (): boolean => !!ai;
+// Initialize AI with API_KEY from environment as per guidelines
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // Analyze a meal description or image to estimate nutrition
 export const analyzeMeal = async (description: string, mealType: string, imageBase64?: string): Promise<Omit<Meal, 'id' | 'timestamp'>> => {
-  if (!isAiAvailable() || !ai) {
-    console.warn("AI not initialized, using fallback.");
-    return {
-      name: description || "Unknown Meal",
-      calories: 300,
-      protein: 10,
-      carbs: 30,
-      fats: 10,
-      type: (mealType as any) || 'snack'
-    };
-  }
-
   try {
     const prompt = description 
       ? `Analyze the following meal: "${description}". Estimate calories, protein (g), carbs (g), and fats (g).`
@@ -99,14 +73,6 @@ export const suggestMeal = async (
   targetCalories: number, 
   dietaryPrefs: string = "healthy"
 ): Promise<{ name: string; description: string; estimatedCalories: number }> => {
-  if (!isAiAvailable() || !ai) {
-    return {
-      name: "Grilled Chicken Salad",
-      description: "Mixed greens with grilled chicken breast, cherry tomatoes, and vinaigrette. (AI Unavailable)",
-      estimatedCalories: 400
-    };
-  }
-
   try {
     const prompt = `Suggest a ${dietaryPrefs} ${mealType} that is approximately ${targetCalories} calories. 
     Return a JSON object with name, description, and estimatedCalories.`;
@@ -141,10 +107,6 @@ export const suggestMeal = async (
 
 // Generate Daily Insight
 export const generateInsight = async (logs: DailyLog[], profile: UserProfile): Promise<string> => {
-  if (!isAiAvailable() || !ai) {
-    return "Stay consistent with your logs to reach your goals!";
-  }
-
   try {
     const summary = logs.slice(-3).map(l => 
       `Date: ${l.date}, Steps: ${l.steps}, Water: ${l.waterBottles * 0.75}L, Calories: ${l.meals.reduce((acc, m) => acc + m.calories, 0)}`
