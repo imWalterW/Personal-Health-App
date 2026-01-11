@@ -28,6 +28,7 @@ export interface UserProfile {
   stepGoal: number;
   walkTimeGoal: number; // minutes
   workoutTimeGoal: number; // minutes
+  waterGoal?: number; // bottles
   calorieGoal: number;
   sleepGoal: number; // hours
   avatarUrl: string | null;
@@ -50,6 +51,7 @@ export enum ModalType {
   WALK,
   WORKOUT,
   MEAL,
+  NUTRITION_LIST,
   WATER,
   SLEEP,
   SETTINGS,

@@ -4,7 +4,7 @@ import {
   Activity, Droplets, Flame, Footprints, Timer, 
   Settings, TrendingUp, Moon, Sun, User as UserIcon, 
   Plus, CalendarCheck, Share2, UploadCloud, DownloadCloud,
-  ChevronRight, ChevronLeft, X, RefreshCw, Lightbulb, Cloud, CheckCircle, AlertCircle, Bell, Scale, Minus
+  ChevronRight, ChevronLeft, X, RefreshCw, Lightbulb, Cloud, CheckCircle, AlertCircle, Bell, Scale, Minus, Trash2
 } from 'lucide-react';
 import { RadialProgress } from './components/RadialChart';
 import { MealLogger } from './components/MealLogger';
@@ -68,6 +68,7 @@ export default function App() {
         stepGoal: 10000,
         walkTimeGoal: 60,
         workoutTimeGoal: 30,
+        waterGoal: 8,
         calorieGoal: 2000,
         sleepGoal: 8,
         avatarUrl: null,
@@ -121,6 +122,7 @@ export default function App() {
   const bmiNum = parseFloat(bmi);
   const isHealthyBMI = !isNaN(bmiNum) && bmiNum >= 18.5 && bmiNum <= 24.9;
   const isBMIConfigured = !isNaN(bmiNum);
+  const waterGoal = state.profile.waterGoal || 8;
 
   // --- Effects ---
 
@@ -334,6 +336,13 @@ export default function App() {
     setActiveModal(ModalType.MEAL);
   };
 
+  const handleDeleteMeal = (mealId: string) => {
+    if (window.confirm("Are you sure you want to remove this meal?")) {
+      const updatedMeals = currentLog.meals.filter(m => m.id !== mealId);
+      updateLog({ meals: updatedMeals });
+    }
+  };
+
   const closeModal = () => {
     setActiveModal(ModalType.NONE);
     setAutoSuggestMeal(false);
@@ -454,7 +463,10 @@ export default function App() {
       {/* Main Metrics Grid */}
       <div className="grid grid-cols-2 gap-4">
         {/* Calories */}
-        <div className="col-span-2 bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 relative overflow-hidden">
+        <div 
+          onClick={() => setActiveModal(ModalType.NUTRITION_LIST)}
+          className="col-span-2 bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 relative overflow-hidden cursor-pointer hover:border-green-500/50 transition-colors"
+        >
            <div className="flex justify-between items-center mb-4">
              <div>
                <h3 className="font-semibold text-gray-600 dark:text-gray-300 flex items-center gap-2">
@@ -475,10 +487,12 @@ export default function App() {
                  <span className="font-mono text-gray-500 dark:text-gray-400">{meal.calories} kcal</span>
                </div>
              ))}
+             {currentLog.meals.length > 2 && <p className="text-xs text-center text-gray-400">+{currentLog.meals.length - 2} more...</p>}
            </div>
 
            <button 
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent opening detail modal
               setAutoSuggestMeal(false);
               setActiveModal(ModalType.MEAL);
             }}
@@ -568,12 +582,13 @@ export default function App() {
       
       {/* Water Card - Full Width at Bottom */}
       <div 
-        className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 relative overflow-hidden transition-transform"
+        onClick={() => setActiveModal(ModalType.WATER)}
+        className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 relative overflow-hidden transition-transform cursor-pointer"
       >
         {/* Background Animation - Horizontal Fill */}
         <div 
             className="absolute top-0 left-0 bottom-0 bg-blue-500/10 transition-all duration-700 ease-in-out"
-            style={{ width: `${Math.min(100, (currentLog.waterBottles / 8) * 100)}%` }}
+            style={{ width: `${Math.min(100, (currentLog.waterBottles / waterGoal) * 100)}%` }}
         />
         {showConfetti && <div className="absolute inset-0 flex items-center justify-center pointer-events-none animate-ping text-blue-500 font-bold text-4xl opacity-20">+</div>}
 
@@ -584,8 +599,8 @@ export default function App() {
                 </div>
                 <div>
                     <p className="text-2xl font-bold dark:text-white flex items-center gap-2">
-                        {currentLog.waterBottles} <span className="text-sm font-normal text-gray-400">/ 8</span>
-                        {currentLog.waterBottles >= 8 && <CheckCircle className="w-4 h-4 text-green-500" />}
+                        {currentLog.waterBottles} <span className="text-sm font-normal text-gray-400">/ {waterGoal}</span>
+                        {currentLog.waterBottles >= waterGoal && <CheckCircle className="w-4 h-4 text-green-500" />}
                     </p>
                     <p className="text-xs text-gray-500">Hydration ({(currentLog.waterBottles * 0.75).toFixed(2)}L)</p>
                 </div>
@@ -913,6 +928,17 @@ export default function App() {
             />
           </div>
         </div>
+
+        {/* Water Goal Edit */}
+        <div>
+           <label className="text-sm text-gray-500 block mb-1">Water Goal (Bottles)</label>
+            <input 
+              type="number" 
+              value={state.profile.waterGoal || 8} 
+              onChange={(e) => updateProfile({ waterGoal: Number(e.target.value) })}
+              className="w-full p-2 rounded-lg bg-gray-50 dark:bg-slate-700 dark:text-white border-none focus:ring-2 focus:ring-primary"
+            />
+        </div>
       </div>
 
       <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
@@ -1029,25 +1055,68 @@ export default function App() {
                       />
                    </Modal>
                 )}
+
+                {activeModal === ModalType.NUTRITION_LIST && (
+                  <Modal title="Today's Meals">
+                     <div className="space-y-4 p-2">
+                       {currentLog.meals.length === 0 ? (
+                         <div className="text-center py-8 text-gray-500">
+                           <UtensilsIcon className="w-12 h-12 mx-auto mb-2 opacity-20" />
+                           <p>No meals logged today</p>
+                         </div>
+                       ) : (
+                          <div className="space-y-3">
+                            {currentLog.meals.map(meal => (
+                              <div key={meal.id} className="flex justify-between items-center bg-gray-50 dark:bg-slate-800 p-3 rounded-xl border border-gray-100 dark:border-slate-700">
+                                 <div>
+                                   <p className="font-bold dark:text-white">{meal.name}</p>
+                                   <div className="flex gap-2 text-xs text-gray-500">
+                                      <span className="capitalize">{meal.type}</span>
+                                      <span>•</span>
+                                      <span>{meal.calories} kcal</span>
+                                   </div>
+                                 </div>
+                                 <button 
+                                    onClick={() => handleDeleteMeal(meal.id)}
+                                    className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                 >
+                                   <Trash2 className="w-4 h-4" />
+                                 </button>
+                              </div>
+                            ))}
+                          </div>
+                       )}
+                       <button 
+                          onClick={() => setActiveModal(ModalType.MEAL)}
+                          className="w-full py-3 mt-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 active:scale-95 transition-all flex items-center justify-center gap-2"
+                       >
+                          <Plus className="w-4 h-4" /> Add New Meal
+                       </button>
+                     </div>
+                  </Modal>
+                )}
                 
                 {/* Steps, Weight, etc reused MetricInput */}
-                {[ModalType.STEPS, ModalType.WEIGHT, ModalType.WALK, ModalType.WORKOUT, ModalType.SLEEP].includes(activeModal) && (
+                {[ModalType.STEPS, ModalType.WEIGHT, ModalType.WALK, ModalType.WORKOUT, ModalType.SLEEP, ModalType.WATER].includes(activeModal) && (
                    <Modal title={
                       activeModal === ModalType.STEPS ? "Update Steps" :
                       activeModal === ModalType.WEIGHT ? "Update Weight" :
                       activeModal === ModalType.WALK ? "Walking Duration" :
-                      activeModal === ModalType.WORKOUT ? "Workout Duration" : "Sleep Duration"
+                      activeModal === ModalType.WORKOUT ? "Workout Duration" : 
+                      activeModal === ModalType.WATER ? "Water Intake" : "Sleep Duration"
                    }>
                       <MetricInput 
                          value={
                             activeModal === ModalType.STEPS ? currentLog.steps :
                             activeModal === ModalType.WEIGHT ? currentLog.weight :
                             activeModal === ModalType.WALK ? currentLog.walkTime :
-                            activeModal === ModalType.WORKOUT ? currentLog.workoutTime : currentLog.sleep
+                            activeModal === ModalType.WORKOUT ? currentLog.workoutTime : 
+                            activeModal === ModalType.WATER ? currentLog.waterBottles : currentLog.sleep
                          }
                          unit={
                             activeModal === ModalType.STEPS ? "steps" :
                             activeModal === ModalType.WEIGHT ? "kg" :
+                            activeModal === ModalType.WATER ? "bottles" :
                             activeModal === ModalType.SLEEP ? "hours" : "min"
                          }
                          onChange={(val) => {
@@ -1055,6 +1124,7 @@ export default function App() {
                             if (activeModal === ModalType.WEIGHT) updateLog({ weight: val });
                             if (activeModal === ModalType.WALK) updateLog({ walkTime: val });
                             if (activeModal === ModalType.WORKOUT) updateLog({ workoutTime: val });
+                            if (activeModal === ModalType.WATER) updateLog({ waterBottles: val });
                             if (activeModal === ModalType.SLEEP) updateLog({ sleep: val });
                          }}
                          onSave={closeModal}
