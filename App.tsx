@@ -1,13 +1,15 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Activity, Droplets, Flame, Footprints, Timer, 
   Settings, TrendingUp, Moon, Sun, User as UserIcon, 
   Plus, CalendarCheck, Share2, UploadCloud, DownloadCloud,
-  ChevronRight, X, RefreshCw, Lightbulb
+  ChevronRight, X, RefreshCw, Lightbulb, Cloud, CheckCircle, AlertCircle
 } from 'lucide-react';
 import { RadialProgress } from './components/RadialChart';
 import { MealLogger } from './components/MealLogger';
 import { generateInsight } from './services/gemini';
+import { initGoogleAuth, signInToGoogle, uploadDataToDrive, downloadDataFromDrive } from './services/googleDrive';
 import { DailyLog, UserProfile, ModalType, AppState, Meal } from './types';
 import { LineChart, Line, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
@@ -69,6 +71,7 @@ export default function App() {
         calorieGoal: 2000,
         avatarUrl: null,
         darkMode: false,
+        autoBackup: false
       },
       logs: {},
       lastBackup: null,
@@ -81,6 +84,12 @@ export default function App() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [autoSuggestMeal, setAutoSuggestMeal] = useState(false);
   const [loadingInsight, setLoadingInsight] = useState(false);
+  
+  // Google Drive State
+  const [googleToken, setGoogleToken] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
+  const [syncMessage, setSyncMessage] = useState<string>('');
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Derived State
@@ -119,6 +128,26 @@ export default function App() {
       handleNewTip();
     }
   }, [Object.keys(state.logs).length]);
+
+  // Google Auth Init
+  useEffect(() => {
+    initGoogleAuth((token) => {
+      setGoogleToken(token);
+      setSyncStatus('success');
+      setSyncMessage('Connected to Drive');
+      setTimeout(() => setSyncStatus('idle'), 3000);
+    });
+  }, []);
+
+  // Auto Backup Effect
+  useEffect(() => {
+    if (state.profile.autoBackup && googleToken && syncStatus === 'idle') {
+      const timer = setTimeout(() => {
+        handleDriveBackup(true);
+      }, 5000); // Debounce backup 5s after changes
+      return () => clearTimeout(timer);
+    }
+  }, [state, googleToken]);
 
   // --- Handlers ---
 
@@ -165,6 +194,49 @@ export default function App() {
     downloadAnchorNode.click();
     downloadAnchorNode.remove();
     setState(prev => ({ ...prev, lastBackup: Date.now() }));
+  };
+
+  // Google Drive Handlers
+  const handleDriveBackup = async (silent = false) => {
+    if (!googleToken) return;
+    if (!silent) setSyncStatus('syncing');
+    
+    try {
+      await uploadDataToDrive(state, googleToken);
+      setState(prev => ({ ...prev, lastBackup: Date.now() }));
+      if (!silent) {
+        setSyncStatus('success');
+        setSyncMessage('Backup Complete');
+        setTimeout(() => setSyncStatus('idle'), 3000);
+      }
+    } catch (error) {
+      console.error(error);
+      if (!silent) {
+        setSyncStatus('error');
+        setSyncMessage('Backup Failed');
+      }
+    }
+  };
+
+  const handleDriveRestore = async () => {
+    if (!googleToken) return;
+    setSyncStatus('syncing');
+    
+    try {
+      const data = await downloadDataFromDrive(googleToken);
+      if (data && data.profile && data.logs) {
+        setState(data);
+        setSyncStatus('success');
+        setSyncMessage('Restore Complete');
+        setTimeout(() => setSyncStatus('idle'), 3000);
+      } else {
+        throw new Error("Invalid data format");
+      }
+    } catch (error) {
+      console.error(error);
+      setSyncStatus('error');
+      setSyncMessage('No Backup Found or Error');
+    }
   };
 
   const triggerAnimation = () => {
@@ -564,28 +636,82 @@ export default function App() {
            </button>
         </div>
 
+        {/* Local Backup Import/Export */}
         <div className="grid grid-cols-2 gap-3">
           <button 
             onClick={handleExport}
             className="flex flex-col items-center justify-center p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700"
           >
             <DownloadCloud className="w-6 h-6 text-primary mb-1" />
-            <span className="text-xs font-medium dark:text-gray-300">Backup Data</span>
+            <span className="text-xs font-medium dark:text-gray-300">Local Backup</span>
           </button>
           <button 
             onClick={() => fileInputRef.current?.click()}
             className="flex flex-col items-center justify-center p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700"
           >
             <UploadCloud className="w-6 h-6 text-secondary mb-1" />
-            <span className="text-xs font-medium dark:text-gray-300">Restore Data</span>
+            <span className="text-xs font-medium dark:text-gray-300">Local Restore</span>
             <input type="file" ref={fileInputRef} onChange={handleImport} className="hidden" accept=".json" />
           </button>
         </div>
         
-        {/* Fake Google Sync Button to satisfy requirement visual */}
-        <button className="w-full py-3 flex items-center justify-center gap-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-medium text-gray-600 dark:text-gray-300">
-          <Share2 className="w-4 h-4" /> Sync to Google Drive (Demo)
-        </button>
+        {/* Google Drive Sync */}
+        <div className="p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 space-y-4">
+           <div className="flex items-center gap-3 mb-2">
+             <div className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-lg">
+               <Cloud className="w-5 h-5" />
+             </div>
+             <span className="font-medium dark:text-white">Google Drive Backup</span>
+           </div>
+           
+           {!googleToken ? (
+             <button 
+               onClick={signInToGoogle}
+               className="w-full py-2.5 bg-white border border-gray-300 dark:bg-slate-700 dark:border-slate-600 rounded-lg text-sm font-medium flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors"
+             >
+               <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" className="w-4 h-4" alt="G" />
+               Connect Google Drive
+             </button>
+           ) : (
+             <div className="space-y-3">
+                {/* Auto Backup Toggle */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">Auto-backup on change</span>
+                  <button 
+                    onClick={() => updateProfile({ autoBackup: !state.profile.autoBackup })}
+                    className={`w-10 h-5 rounded-full p-0.5 transition-colors ${state.profile.autoBackup ? 'bg-green-500' : 'bg-gray-300'}`}
+                  >
+                    <div className={`w-4 h-4 bg-white rounded-full transition-transform ${state.profile.autoBackup ? 'translate-x-5' : ''}`} />
+                  </button>
+                </div>
+                
+                <div className="flex gap-2">
+                   <button 
+                     onClick={() => handleDriveBackup()}
+                     disabled={syncStatus === 'syncing'}
+                     className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors disabled:opacity-50"
+                   >
+                     {syncStatus === 'syncing' ? 'Syncing...' : 'Backup Now'}
+                   </button>
+                   <button 
+                     onClick={handleDriveRestore}
+                     disabled={syncStatus === 'syncing'}
+                     className="flex-1 py-2 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-white rounded-lg text-xs font-bold hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors disabled:opacity-50"
+                   >
+                     Restore Cloud
+                   </button>
+                </div>
+
+                {/* Status Message */}
+                {syncMessage && (
+                   <div className={`text-xs flex items-center gap-1 ${syncStatus === 'error' ? 'text-red-500' : 'text-green-600'}`}>
+                      {syncStatus === 'error' ? <AlertCircle className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
+                      {syncMessage}
+                   </div>
+                )}
+             </div>
+           )}
+        </div>
       </div>
     </div>
   );

@@ -1,3 +1,4 @@
+
 export interface Meal {
   id: string;
   name: string;
@@ -27,6 +28,7 @@ export interface UserProfile {
   calorieGoal: number;
   avatarUrl: string | null;
   darkMode: boolean;
+  autoBackup?: boolean;
 }
 
 export interface AppState {
