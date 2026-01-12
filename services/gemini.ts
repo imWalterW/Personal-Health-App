@@ -30,6 +30,17 @@ export const analyzeMeal = async (description: string, mealType: string, imageBa
       contents: { parts },
       config: {
         responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            name: { type: Type.STRING },
+            calories: { type: Type.NUMBER },
+            protein: { type: Type.NUMBER },
+            carbs: { type: Type.NUMBER },
+            fats: { type: Type.NUMBER },
+          },
+          required: ["name", "calories", "protein", "carbs", "fats"],
+        },
       },
     });
 
