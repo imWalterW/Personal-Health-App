@@ -46,8 +46,19 @@ export const analyzeMeal = async (description: string, mealType: string, imageBa
     });
 
     const rawText = response.text || "{}";
-    // Strip markdown code blocks if present (e.g. ```json ... ```)
-    const jsonText = rawText.replace(/```json|```/g, '').trim();
+    
+    // Robust JSON extraction: Find the first '{' and last '}'
+    const firstBrace = rawText.indexOf('{');
+    const lastBrace = rawText.lastIndexOf('}');
+    
+    let jsonText = rawText;
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      jsonText = rawText.substring(firstBrace, lastBrace + 1);
+    } else {
+      // Fallback: strip markdown if braces not found cleanly
+      jsonText = rawText.replace(/```json|```/g, '').trim();
+    }
+    
     const data = JSON.parse(jsonText);
     
     return {
@@ -99,7 +110,18 @@ export const suggestMeal = async (
     });
 
     const rawText = response.text || "{}";
-    const jsonText = rawText.replace(/```json|```/g, '').trim();
+    
+    // Robust JSON extraction for suggestions
+    const firstBrace = rawText.indexOf('{');
+    const lastBrace = rawText.lastIndexOf('}');
+    
+    let jsonText = rawText;
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      jsonText = rawText.substring(firstBrace, lastBrace + 1);
+    } else {
+      jsonText = rawText.replace(/```json|```/g, '').trim();
+    }
+
     return JSON.parse(jsonText);
   } catch (error) {
     console.error("Gemini Suggestion Error:", error);
