@@ -247,13 +247,6 @@ export default function App() {
     }
   }, [state]);
 
-  useEffect(() => {
-    const logsArray = (Object.values(safeLogs) as DailyLog[]).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    if (logsArray.length > 0 && !insight) {
-      handleNewTip();
-    }
-  }, [Object.keys(safeLogs).length]);
-
   // Google Auth Init
   useEffect(() => {
     initGoogleAuth(state.profile.googleClientId, (tokenResponse) => {
@@ -316,6 +309,56 @@ export default function App() {
   }, [state, googleToken]);
 
   // --- Handlers ---
+
+  const handleNewTip = async (forceRefresh = false) => {
+    const todayStr = getTodayDate();
+    
+    // 1. Try to load from cache if not forced
+    if (!forceRefresh) {
+      try {
+        const cached = localStorage.getItem('vitalsync_daily_insight');
+        if (cached) {
+          const { date, text } = JSON.parse(cached);
+          if (date === todayStr && text) {
+            setInsight(text);
+            return;
+          }
+        }
+      } catch (e) {
+        console.error("Cache parse error", e);
+      }
+    }
+
+    setLoadingInsight(true);
+    const logsArray = (Object.values(safeLogs) as DailyLog[]).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    // Only generate if we have logs to analyze
+    if (logsArray.length > 0) {
+      try {
+        const newInsight = await generateInsight(logsArray, state.profile);
+        setInsight(newInsight);
+        // 2. Save to cache
+        localStorage.setItem('vitalsync_daily_insight', JSON.stringify({
+          date: todayStr,
+          text: newInsight
+        }));
+      } catch (error) {
+        console.error("Failed to generate insight", error);
+        setInsight("Stay consistent and keep tracking your health!");
+      }
+    } else {
+       setInsight("Start logging your data to receive personalized AI insights!");
+    }
+    setLoadingInsight(false);
+  };
+
+  // Initial load effect for insight
+  useEffect(() => {
+    const logsArray = Object.values(safeLogs);
+    if (logsArray.length > 0 && !insight) {
+      handleNewTip(false);
+    }
+  }, [Object.keys(safeLogs).length]);
 
   const updateLog = (updates: Partial<DailyLog>) => {
     setState(prev => ({
@@ -440,14 +483,6 @@ export default function App() {
     setTimeout(() => setShowConfetti(false), 2000);
   };
 
-  const handleNewTip = async () => {
-    setLoadingInsight(true);
-    const logsArray = (Object.values(safeLogs) as DailyLog[]).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    const newInsight = await generateInsight(logsArray, state.profile);
-    setInsight(newInsight);
-    setLoadingInsight(false);
-  };
-
   const closeModal = () => {
     setActiveModal(ModalType.NONE);
     setAutoSuggestMeal(false);
@@ -489,7 +524,7 @@ export default function App() {
           <h3 className="font-bold text-sm opacity-80 mb-1 flex items-center gap-2">AI Health Insight {loadingInsight && <RefreshCw className="w-3 h-3 animate-spin" />}</h3>
           <p className="text-sm leading-relaxed min-h-[40px]">{insight || "Analyzing your data..."}</p>
           <div className="flex gap-2 mt-4">
-            <button onClick={handleNewTip} disabled={loadingInsight} className="flex items-center gap-1 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-medium transition-colors"><RefreshCw className={`w-3 h-3 ${loadingInsight ? 'animate-spin' : ''}`} /> New Tip</button>
+            <button onClick={() => handleNewTip(true)} disabled={loadingInsight} className="flex items-center gap-1 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-medium transition-colors"><RefreshCw className={`w-3 h-3 ${loadingInsight ? 'animate-spin' : ''}`} /> New Tip</button>
             <button onClick={() => { setAutoSuggestMeal(true); setActiveModal(ModalType.MEAL); }} className="flex items-center gap-1 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-medium transition-colors"><Lightbulb className="w-3 h-3" /> Suggest Meal</button>
           </div>
         </div>
