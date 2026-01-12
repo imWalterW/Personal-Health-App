@@ -236,10 +236,14 @@ export default function App() {
       console.error("Failed to save state", e);
     }
     
+    const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+
     if (state.profile.darkMode) {
       document.documentElement.classList.add('dark');
+      if (themeColorMeta) themeColorMeta.setAttribute('content', '#0f172a');
     } else {
       document.documentElement.classList.remove('dark');
+      if (themeColorMeta) themeColorMeta.setAttribute('content', '#f9fafb');
     }
   }, [state]);
 
