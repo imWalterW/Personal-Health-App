@@ -4,10 +4,18 @@ const SCOPES = 'https://www.googleapis.com/auth/drive.appdata';
 const FILENAME = 'vitalsync_data.json';
 
 let tokenClient: any;
+let initAttemptCount = 0;
 
-export const initGoogleAuth = (clientId: string | undefined, onSuccess: (token: string) => void) => {
-  if (typeof window === 'undefined' || !(window as any).google) {
-    // Retry if google script hasn't loaded yet
+export const initGoogleAuth = (clientId: string | undefined, onSuccess: (tokenResponse: any) => void) => {
+  if (typeof window === 'undefined') return;
+  
+  // If google script is not loaded yet, poll for it safely
+  if (!(window as any).google) {
+    if (initAttemptCount > 20) {
+      console.warn("Google GSI script failed to load after multiple attempts.");
+      return;
+    }
+    initAttemptCount++;
     setTimeout(() => initGoogleAuth(clientId, onSuccess), 500);
     return;
   }
@@ -25,7 +33,7 @@ export const initGoogleAuth = (clientId: string | undefined, onSuccess: (token: 
       scope: SCOPES,
       callback: (tokenResponse: any) => {
         if (tokenResponse.access_token) {
-          onSuccess(tokenResponse.access_token);
+          onSuccess(tokenResponse);
         }
       },
     });
@@ -39,8 +47,10 @@ export const signInToGoogle = () => {
     tokenClient.requestAccessToken();
   } else {
     console.warn("Google Auth not initialized");
-    if (!CLIENT_ID) {
-      alert("Google Client ID is missing.");
+    if (!(window as any).google) {
+        alert("Google services are still loading. Please try again in a few seconds.");
+    } else {
+        alert("Google Authentication is not ready. Please refresh the page.");
     }
   }
 };
@@ -111,7 +121,7 @@ export const downloadDataFromDrive = async (token: string) => {
     const searchData = await searchRes.json();
     const fileId = searchData.files?.[0]?.id;
 
-    if (!fileId) throw new Error('No backup found in Google Drive');
+    if (!fileId) return null; // No backup found
 
     // 2. Download content
     const downloadRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
