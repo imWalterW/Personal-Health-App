@@ -8,8 +8,8 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 export const analyzeMeal = async (description: string, mealType: string, imageBase64?: string): Promise<Omit<Meal, 'id' | 'timestamp'>> => {
   try {
     const prompt = description 
-      ? `Analyze the following meal: "${description}". Estimate calories, protein (g), carbs (g), and fats (g).`
-      : `Analyze this food image. Estimate calories, protein (g), carbs (g), and fats (g). Name the dish.`;
+      ? `Analyze the following meal: "${description}". Estimate calories, protein (g), carbs (g), and fats (g). Return a JSON object with keys: name, calories, protein, carbs, fats.`
+      : `Analyze this food image. Estimate calories, protein (g), carbs (g), and fats (g). Name the dish. Return a JSON object with keys: name, calories, protein, carbs, fats.`;
 
     const parts: any[] = [{ text: prompt }];
     
@@ -30,18 +30,6 @@ export const analyzeMeal = async (description: string, mealType: string, imageBa
       contents: { parts },
       config: {
         responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            name: { type: Type.STRING },
-            calories: { type: Type.NUMBER },
-            protein: { type: Type.NUMBER },
-            carbs: { type: Type.NUMBER },
-            fats: { type: Type.NUMBER },
-            type: { type: Type.STRING }
-          },
-          required: ["name", "calories", "protein", "carbs", "fats"],
-        },
       },
     });
 
