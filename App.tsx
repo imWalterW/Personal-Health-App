@@ -889,7 +889,7 @@ export default function App() {
         </div>
 
         {/* Bottom Navigation */}
-        <div className="absolute bottom-0 w-full max-w-md bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-slate-800 pb-safe z-40">
+        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-slate-800 pb-safe z-40">
            <div className="flex justify-between items-end px-2 pb-2 pt-2 relative">
              
              {/* Daily */}
