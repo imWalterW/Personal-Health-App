@@ -45,7 +45,11 @@ export const analyzeMeal = async (description: string, mealType: string, imageBa
       },
     });
 
-    const data = JSON.parse(response.text || "{}");
+    const rawText = response.text || "{}";
+    // Strip markdown code blocks if present (e.g. ```json ... ```)
+    const jsonText = rawText.replace(/```json|```/g, '').trim();
+    const data = JSON.parse(jsonText);
+    
     return {
       name: data.name || (description ? description.slice(0, 20) : "Uploaded Meal"),
       calories: data.calories || 0,
@@ -94,7 +98,9 @@ export const suggestMeal = async (
       }
     });
 
-    return JSON.parse(response.text || "{}");
+    const rawText = response.text || "{}";
+    const jsonText = rawText.replace(/```json|```/g, '').trim();
+    return JSON.parse(jsonText);
   } catch (error) {
     console.error("Gemini Suggestion Error:", error);
     return {
