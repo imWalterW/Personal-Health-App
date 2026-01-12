@@ -459,7 +459,7 @@ export default function App() {
   // --- Renderers ---
 
   const renderDashboard = () => (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold dark:text-white">Hello, {state.profile.name}</h1>
@@ -585,19 +585,27 @@ export default function App() {
     const data = (Object.values(safeLogs) as DailyLog[]).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(-14);
     const weightData = data.filter(d => d.weight > 0);
     
+    // Filter data for non-zero values
+    const stepsData = data.filter(d => d.steps > 0);
+    const walkData = data.filter(d => d.walkTime > 0);
+    const workoutData = data.filter(d => d.workoutTime > 0);
+    const caloriesData = data.filter(d => d.meals.reduce((acc, m) => acc + m.calories, 0) > 0);
+    const waterData = data.filter(d => d.waterBottles > 0);
+    const sleepData = data.filter(d => d.sleep > 0);
+
     // Calculations
-    const avgSteps = Math.round(data.reduce((acc, curr) => acc + curr.steps, 0) / (data.length || 1));
-    const avgWalk = Math.round(data.reduce((acc, curr) => acc + curr.walkTime, 0) / (data.length || 1));
-    const avgWorkout = Math.round(data.reduce((acc, curr) => acc + curr.workoutTime, 0) / (data.length || 1));
-    const avgCalories = Math.round(data.reduce((acc, curr) => acc + curr.meals.reduce((mAcc, m) => mAcc + m.calories, 0), 0) / (data.length || 1));
-    const avgWater = (data.reduce((acc, curr) => acc + curr.waterBottles, 0) / (data.length || 1)).toFixed(1);
-    const avgSleep = (data.reduce((acc, curr) => acc + (curr.sleep || 0), 0) / (data.length || 1)).toFixed(1);
+    const avgSteps = Math.round(stepsData.reduce((acc, curr) => acc + curr.steps, 0) / (stepsData.length || 1));
+    const avgWalk = Math.round(walkData.reduce((acc, curr) => acc + curr.walkTime, 0) / (walkData.length || 1));
+    const avgWorkout = Math.round(workoutData.reduce((acc, curr) => acc + curr.workoutTime, 0) / (workoutData.length || 1));
+    const avgCalories = Math.round(caloriesData.reduce((acc, curr) => acc + curr.meals.reduce((mAcc, m) => mAcc + m.calories, 0), 0) / (caloriesData.length || 1));
+    const avgWater = (waterData.reduce((acc, curr) => acc + curr.waterBottles, 0) / (waterData.length || 1)).toFixed(1);
+    const avgSleep = (sleepData.reduce((acc, curr) => acc + (curr.sleep || 0), 0) / (sleepData.length || 1)).toFixed(1);
     const avgWeight = weightData.length > 0 
         ? (weightData.reduce((acc, curr) => acc + curr.weight, 0) / weightData.length).toFixed(1) 
         : '--';
 
     return (
-      <div className="space-y-6 pb-24">
+      <div className="space-y-6">
         <h1 className="text-2xl font-bold dark:text-white">Highlights</h1>
         
         {/* Summary Cards Grid */}
@@ -796,7 +804,7 @@ export default function App() {
   };
 
   const renderProfile = () => (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-6">
       <h2 className="text-2xl font-bold dark:text-white">Profile & Settings</h2>
       <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col items-center">
          <div className="relative group cursor-pointer" onClick={() => document.getElementById('avatar-upload')?.click()}>
@@ -868,52 +876,154 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 text-gray-800 dark:text-slate-100 font-sans selection:bg-primary/30">
-       <div className="max-w-md mx-auto min-h-screen bg-white dark:bg-slate-900 shadow-2xl relative">
-          <main className="p-4 min-h-screen">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 transition-colors duration-200 font-sans selection:bg-primary/20">
+      <div className="max-w-md mx-auto h-[100dvh] bg-white dark:bg-slate-900 shadow-2xl overflow-hidden flex flex-col relative border-x border-gray-100 dark:border-slate-800">
+        
+        {/* Main Content Area */}
+        <div className="flex-1 overflow-y-auto p-4 scrollbar-hide pb-28">
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
             {activeTab === 'dashboard' && renderDashboard()}
             {activeTab === 'stats' && renderStats()}
             {activeTab === 'profile' && renderProfile()}
-          </main>
-          <nav className="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-gray-100 dark:border-slate-800 p-2 pb-6 z-40 max-w-md mx-auto">
-             <div className="flex justify-around items-end">
-                <button onClick={() => setActiveTab('dashboard')} className={`p-2 flex flex-col items-center gap-1 ${activeTab === 'dashboard' ? 'text-primary' : 'text-gray-400'}`}><TrendingUp className="w-6 h-6" /><span className="text-[10px] font-medium">Daily</span></button>
-                <button onClick={() => setActiveTab('stats')} className={`p-2 flex flex-col items-center gap-1 ${activeTab === 'stats' ? 'text-primary' : 'text-gray-400'}`}><Activity className="w-6 h-6" /><span className="text-[10px] font-medium">Stats</span></button>
-                <div className="relative -top-5"><button onClick={() => setActiveModal(ModalType.MEAL)} className="w-14 h-14 bg-primary text-white rounded-full shadow-lg shadow-primary/40 flex items-center justify-center transform transition-transform hover:scale-105 active:scale-95"><Plus className="w-7 h-7" /></button></div>
-                <button onClick={() => setActiveTab('profile')} className={`p-2 flex flex-col items-center gap-1 ${activeTab === 'profile' ? 'text-primary' : 'text-gray-400'}`}><UserIcon className="w-6 h-6" /><span className="text-[10px] font-medium">Profile</span></button>
-                 <button onClick={() => updateProfile({ darkMode: !state.profile.darkMode })} className={`p-2 flex flex-col items-center gap-1 ${state.profile.darkMode ? 'text-white' : 'text-gray-400'}`}>{state.profile.darkMode ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}<span className="text-[10px] font-medium">Theme</span></button>
-             </div>
-          </nav>
+          </div>
+        </div>
 
-          {activeModal !== ModalType.NONE && (
-             <>
-                {activeModal === ModalType.MEAL && (
-                   <Modal title="Log Meal" onClose={closeModal}>
-                      <MealLogger onAddMeal={(meal) => { updateLog({ meals: [...currentLog.meals, meal] }); }} onClose={closeModal} currentCalories={currentCalories} calorieGoal={state.profile.calorieGoal} profile={state.profile} autoSuggest={autoSuggestMeal} />
-                   </Modal>
-                )}
-                {activeModal === ModalType.NUTRITION_LIST && (
-                  <Modal title="Today's Meals" onClose={closeModal}>
-                     <div className="space-y-4 p-2">
-                       {currentLog.meals.length === 0 ? <div className="text-center py-8 text-gray-500"><UtensilsIcon className="w-12 h-12 mx-auto mb-2 opacity-20" /><p>No meals logged today</p></div> : <div className="space-y-3">{currentLog.meals.map(meal => (
-                              <div key={meal.id} className="flex justify-between items-center bg-gray-50 dark:bg-slate-800 p-3 rounded-xl border border-gray-100 dark:border-slate-700"><div><p className="font-bold dark:text-white">{meal.name}</p><div className="flex gap-2 text-xs text-gray-500"><span className="capitalize">{meal.type}</span><span>•</span><span>{meal.calories} kcal</span></div></div><button onClick={() => handleDeleteMeal(meal.id)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button></div>
-                            ))}</div>}
-                       <button onClick={() => setActiveModal(ModalType.MEAL)} className="w-full py-3 mt-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 active:scale-95 transition-all flex items-center justify-center gap-2"><Plus className="w-4 h-4" /> Add New Meal</button>
-                     </div>
-                  </Modal>
-                )}
-                {[ModalType.STEPS, ModalType.WEIGHT, ModalType.WALK, ModalType.WORKOUT, ModalType.SLEEP, ModalType.WATER].includes(activeModal) && (
-                   <Modal onClose={closeModal} title={activeModal === ModalType.STEPS ? "Update Steps" : activeModal === ModalType.WEIGHT ? "Update Weight" : activeModal === ModalType.WALK ? "Walking Duration" : activeModal === ModalType.WORKOUT ? "Workout Duration" : activeModal === ModalType.WATER ? "Water Intake" : "Sleep Duration"}>
-                      <MetricInput 
-                         initialValue={activeModal === ModalType.STEPS ? currentLog.steps : activeModal === ModalType.WEIGHT ? currentLog.weight : activeModal === ModalType.WALK ? currentLog.walkTime : activeModal === ModalType.WORKOUT ? currentLog.workoutTime : activeModal === ModalType.WATER ? currentLog.waterBottles : currentLog.sleep}
-                         unit={activeModal === ModalType.STEPS ? "steps" : activeModal === ModalType.WEIGHT ? "kg" : activeModal === ModalType.WATER ? "bottles" : activeModal === ModalType.SLEEP ? "hours" : "min"}
-                         onSave={(val) => { if (activeModal === ModalType.STEPS) updateLog({ steps: val }); if (activeModal === ModalType.WEIGHT) updateLog({ weight: val }); if (activeModal === ModalType.WALK) updateLog({ walkTime: val }); if (activeModal === ModalType.WORKOUT) updateLog({ workoutTime: val }); if (activeModal === ModalType.WATER) updateLog({ waterBottles: val }); if (activeModal === ModalType.SLEEP) updateLog({ sleep: val }); closeModal(); }}
-                      />
-                   </Modal>
-                )}
-             </>
-          )}
-       </div>
+        {/* Bottom Navigation */}
+        <div className="absolute bottom-0 w-full max-w-md bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-slate-800 pb-safe z-40">
+           <div className="flex justify-between items-end px-2 pb-2 pt-2 relative">
+             
+             {/* Daily */}
+             <button 
+                onClick={() => setActiveTab('dashboard')} 
+                className={`flex flex-col items-center gap-1 w-16 py-1 ${activeTab === 'dashboard' ? 'text-primary' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+             >
+               <TrendingUp className="w-6 h-6" />
+               <span className="text-[10px] font-medium">Daily</span>
+             </button>
+
+             {/* Stats */}
+             <button 
+                onClick={() => setActiveTab('stats')} 
+                className={`flex flex-col items-center gap-1 w-16 py-1 ${activeTab === 'stats' ? 'text-primary' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+             >
+                <Activity className="w-6 h-6" />
+               <span className="text-[10px] font-medium">Stats</span>
+             </button>
+
+             {/* FAB - Center */}
+             <div className="relative -top-6">
+                <button
+                   onClick={() => setActiveModal(ModalType.MEAL)}
+                   className="w-14 h-14 rounded-full bg-primary text-white shadow-lg shadow-primary/40 flex items-center justify-center hover:scale-105 transition-transform"
+                >
+                   <Plus className="w-8 h-8" />
+                </button>
+             </div>
+
+             {/* Profile */}
+             <button 
+                onClick={() => setActiveTab('profile')} 
+                className={`flex flex-col items-center gap-1 w-16 py-1 ${activeTab === 'profile' ? 'text-primary' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+             >
+                <UserIcon className="w-6 h-6" />
+               <span className="text-[10px] font-medium">Profile</span>
+             </button>
+
+             {/* Theme */}
+             <button 
+                onClick={() => updateProfile({ darkMode: !state.profile.darkMode })} 
+                className={`flex flex-col items-center gap-1 w-16 py-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300`}
+             >
+                {state.profile.darkMode ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
+               <span className="text-[10px] font-medium">Theme</span>
+             </button>
+
+           </div>
+        </div>
+
+        {/* Modals */}
+        {activeModal !== ModalType.NONE && (
+           <>
+            {activeModal === ModalType.MEAL && (
+              <Modal title="Log Meal" onClose={closeModal}>
+                <MealLogger 
+                  onAddMeal={(meal) => updateLog({ meals: [...currentLog.meals, meal] })} 
+                  onClose={closeModal}
+                  currentCalories={currentCalories}
+                  calorieGoal={state.profile.calorieGoal}
+                  profile={state.profile}
+                  autoSuggest={autoSuggestMeal}
+                />
+              </Modal>
+            )}
+
+            {activeModal === ModalType.NUTRITION_LIST && (
+               <Modal title="Today's Meals" onClose={closeModal}>
+                  <div className="p-4 space-y-3">
+                    {currentLog.meals.length === 0 ? (
+                      <div className="text-center py-10 text-gray-400">
+                        <UtensilsIcon className="w-12 h-12 mx-auto mb-2 opacity-20" />
+                        <p>No meals logged yet.</p>
+                      </div>
+                    ) : (
+                      currentLog.meals.map((meal) => (
+                        <div key={meal.id} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-slate-700">
+                           <div className="flex-1">
+                              <p className="font-semibold dark:text-white">{meal.name}</p>
+                              <p className="text-xs text-gray-500">{meal.calories} kcal • {meal.type}</p>
+                           </div>
+                           <button onClick={() => handleDeleteMeal(meal.id)} className="p-2 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                              <Trash2 className="w-4 h-4" />
+                           </button>
+                        </div>
+                      ))
+                    )}
+                    <button onClick={() => setActiveModal(ModalType.MEAL)} className="w-full py-3 mt-4 bg-primary text-white rounded-xl font-bold flex items-center justify-center gap-2">
+                      <Plus className="w-4 h-4" /> Add Meal
+                    </button>
+                  </div>
+               </Modal>
+            )}
+
+            {activeModal === ModalType.WEIGHT && (
+              <Modal title="Log Weight" onClose={closeModal}>
+                <MetricInput initialValue={currentLog.weight} unit="kg" onSave={(val) => { updateLog({ weight: val }); closeModal(); }} />
+              </Modal>
+            )}
+
+            {activeModal === ModalType.STEPS && (
+              <Modal title="Log Steps" onClose={closeModal}>
+                <MetricInput initialValue={currentLog.steps} unit="steps" onSave={(val) => { updateLog({ steps: val }); closeModal(); }} />
+              </Modal>
+            )}
+
+            {activeModal === ModalType.WALK && (
+              <Modal title="Walking Duration" onClose={closeModal}>
+                <MetricInput initialValue={currentLog.walkTime} unit="min" onSave={(val) => { updateLog({ walkTime: val }); closeModal(); }} />
+              </Modal>
+            )}
+            
+            {activeModal === ModalType.WORKOUT && (
+              <Modal title="Workout Duration" onClose={closeModal}>
+                <MetricInput initialValue={currentLog.workoutTime} unit="min" onSave={(val) => { updateLog({ workoutTime: val }); closeModal(); }} />
+              </Modal>
+            )}
+
+            {activeModal === ModalType.WATER && (
+              <Modal title="Water Intake" onClose={closeModal}>
+                 <MetricInput initialValue={currentLog.waterBottles} unit="bottles" onSave={(val) => { updateLog({ waterBottles: val }); closeModal(); }} />
+              </Modal>
+            )}
+
+            {activeModal === ModalType.SLEEP && (
+              <Modal title="Sleep Duration" onClose={closeModal}>
+                 <MetricInput initialValue={currentLog.sleep} unit="hours" onSave={(val) => { updateLog({ sleep: val }); closeModal(); }} />
+              </Modal>
+            )}
+           </>
+        )}
+
+      </div>
     </div>
   );
 }
